@@ -14,7 +14,6 @@ def read_in(ctm_file_path):
 
     data = []
 
-    # Process each line in the CTM file
     for line_number, line in enumerate(lines, start=1):  # Start line numbering from 1
         columns = line.strip().split(',')
 
@@ -64,7 +63,7 @@ def read_in(ctm_file_path):
     # Drop the rows where it has NaN values for better acc (We can later refactor
     # that and fill the NaN with the Median of the Column instead).
     df = df.dropna()
-    # Set the line numbers as the index
+
     df.index = df.index + 1
     df.index.name = 'Line Number'
 
@@ -74,39 +73,31 @@ def read_in(ctm_file_path):
 
 def preproccessing(df):
     # Windowing
-    window_size = 100  # Adjust window size as needed
-    overlap = 10  # Adjust overlap as needed
+    window_size = 100
+    overlap = 10
 
     windows = []
     labels = []
 
     for i in range(0, len(df) - window_size + 1, window_size - overlap):
         window_data = df.iloc[i:i + window_size]
-        # Extract features from the window_data and append to the windows list
+
         window_features = extract_features(window_data)
         windows.append(window_features)
 
-        # Assuming that the label for the window is the majority label in that window
         window_label = window_data['label'].mode().values[0]
         labels.append(window_label)
 
-    # Convert the windows and labels lists to NumPy arrays
     feature_windows = np.array(windows)
     window_labels = np.array(labels)
 
     return feature_windows, window_labels
-
-
-    #return feature_df
 def evaluate_segment_event_based(y_true, y_pred):
     segment_metrics = wardmetrics.get_segment_metrics(y_true, y_pred)
     event_metrics = wardmetrics.get_event_metrics(y_true, y_pred)
 
     return segment_metrics, event_metrics
 def extract_features(window_data):
-    # Add your feature extraction logic here
-    # This can include statistical measures, frequency domain features, etc.
-    # For now, this example includes the mean of each sensor column
     features = window_data.drop('label', axis=1).mean().values
     return features
 def evaluate_performance(y_true, y_pred):
