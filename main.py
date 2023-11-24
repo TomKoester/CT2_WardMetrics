@@ -6,23 +6,17 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_sc
 import wardmetrics
 
 def read_in(ctm_file_path):
-    # Open the CTM file
     with open(ctm_file_path, 'r') as file:
-        # Read lines from the file
         lines = file.readlines()
 
-    # Skip the first line (header)
     lines = lines[1:]
 
-    # Initialize an empty list to store data
     data = []
 
     # Process each line in the CTM file
     for line_number, line in enumerate(lines, start=1):  # Start line numbering from 1
-        # Split the line into columns based on comma separation
         columns = line.strip().split(',')
 
-        # Assuming a common format where columns represent timestamp, label, and sensor data
         timestamp = float(columns[0])
         label = columns[1]
         accelerometer_x = float(columns[2])
@@ -57,7 +51,6 @@ def read_in(ctm_file_path):
                      rotation_vector_z, rotation_vector_scalar, rotation_vector_heading_accuracy, magnetic_field_x,
                      magnetic_field_y, magnetic_field_z])
 
-    # Define column names
     columns = [
         'timestamp', 'label', 'accelerometer_x', 'accelerometer_y', 'accelerometer_z', 'gyro_x', 'gyro_y', 'gyro_z',
         'linear_accel_x', 'linear_accel_y', 'linear_accel_z', 'gravity_x', 'gravity_y', 'gravity_z',
@@ -66,22 +59,18 @@ def read_in(ctm_file_path):
         'magnetic_field_y', 'magnetic_field_z'
     ]
 
-    # Create a DataFrame
     df = pd.DataFrame(data, columns=columns)
 
     # Set the line numbers as the index
-    df.index = df.index + 1  # Add 1 to start indexing from 1
+    df.index = df.index + 1
     df.index.name = 'Line Number'
 
-    # Print the DataFrame
 
     return df
 
 
 def preproccessing(df):
-    # Assuming df is your DataFrame with the sensor data
-    # Assume 'label' is the column containing activity labels
-    # Windowing
+    #Windowing
     window_size = 100  # Adjust window size as needed
     overlap = 10  # Adjust overlap as needed
     windows = [df[i:i + window_size] for i in range(0, len(df), window_size - overlap)]
@@ -101,8 +90,8 @@ def evaluate_performance(y_true, y_pred):
 
     return accuracy, recall, precision, f1
 def main():
-    ctm_file_path_training =r"C:\Users\Tom\Desktop\Uni Kassel\CT2\DATASET\DATASET\P-1_training.ctm"
-    ctm_file_path_test = r"C:\Users\Tom\Desktop\Uni Kassel\CT2\DATASET\DATASET\P-1_test.ctm"
+    ctm_file_path_training =r"DATASET\DATASET\P-1_training.ctm"
+    ctm_file_path_test = r"DATASET\DATASET\P-1_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
     df_test = read_in(ctm_file_path_test)
     df_training = read_in(ctm_file_path_training)
