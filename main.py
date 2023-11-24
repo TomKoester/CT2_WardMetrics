@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
@@ -60,7 +61,9 @@ def read_in(ctm_file_path):
     ]
 
     df = pd.DataFrame(data, columns=columns)
-
+    # Drop the rows where it has NaN values for better acc (We can later refactor
+    # that and fill the NaN with the Median of the Column instead).
+    df = df.dropna()
     # Set the line numbers as the index
     df.index = df.index + 1
     df.index.name = 'Line Number'
@@ -70,10 +73,28 @@ def read_in(ctm_file_path):
 
 
 def preproccessing(df):
-    #Windowing
+    # Windowing
     window_size = 100  # Adjust window size as needed
     overlap = 10  # Adjust overlap as needed
-    windows = [df[i:i + window_size] for i in range(0, len(df), window_size - overlap)]
+
+    windows = []
+    labels = []
+
+    for i in range(0, len(df) - window_size + 1, window_size - overlap):
+        window_data = df.iloc[i:i + window_size]
+        # Extract features from the window_data and append to the windows list
+        window_features = extract_features(window_data)
+        windows.append(window_features)
+
+        # Assuming that the label for the window is the majority label in that window
+        window_label = window_data['label'].mode().values[0]
+        labels.append(window_label)
+
+    # Convert the windows and labels lists to NumPy arrays
+    feature_windows = np.array(windows)
+    window_labels = np.array(labels)
+
+    return feature_windows, window_labels
 
 
     #return feature_df
@@ -82,6 +103,12 @@ def evaluate_segment_event_based(y_true, y_pred):
     event_metrics = wardmetrics.get_event_metrics(y_true, y_pred)
 
     return segment_metrics, event_metrics
+def extract_features(window_data):
+    # Add your feature extraction logic here
+    # This can include statistical measures, frequency domain features, etc.
+    # For now, this example includes the mean of each sensor column
+    features = window_data.drop('label', axis=1).mean().values
+    return features
 def evaluate_performance(y_true, y_pred):
     accuracy = accuracy_score(y_true, y_pred)
     recall = recall_score(y_true, y_pred, average='weighted')
@@ -97,50 +124,41 @@ def main():
     df_training = read_in(ctm_file_path_training)
     #print(df_test)
     #print(df_training)
-    #preproccessed_df = preproccessing(df)
-    #print(preproccessed_df)
-    # Combine the training and test sets for label encoding
 
 
-    combined_df = pd.concat([df_training, df_test], ignore_index=True)
-
+    # Preprocess the data for training
     # Label Encoding like encodes 'walking' as '0' and 'standing' as '1' and so on...
     label_encoder = LabelEncoder()
-    combined_df['label'] = label_encoder.fit_transform(combined_df['label'])
+    df_training['label'] = label_encoder.fit_transform(df_training['label'])
+    df_test['label'] = label_encoder.transform(df_test['label'])
 
-    df_training_encoded = combined_df.iloc[:len(df_training)]
-    df_test_encoded = combined_df.iloc[len(df_training):]
+    # Preprocess the data for training
+    X_train, y_train = preproccessing(df_training)
 
-    # Train-Test Split
-    X_train, X_val, y_train, y_val = train_test_split(
-        #entfernen von label column
-        df_training_encoded.drop('label', axis=1),
-        df_training_encoded['label'],
-        test_size=0.2,
-        random_state=42
-    )
+    # Preprocess the test data for evaluation
+    X_test, y_test = preproccessing(df_test)
 
-    # Decision Trees Classifier
     dt_classifier = DecisionTreeClassifier()
     dt_classifier.fit(X_train, y_train)
 
     # Predictions
-    y_pred = dt_classifier.predict(df_test_encoded.drop('label', axis=1))
+    y_pred = dt_classifier.predict(X_test)
 
-
-    accuracy, recall, precision, f1 = evaluate_performance(df_test_encoded['label'], y_pred)
+    # Evaluate the model
+    accuracy, recall, precision, f1 = evaluate_performance(y_test, y_pred)
     print("Traditional Metrics:")
     print(f"Accuracy: {accuracy:.2f}")
     print(f"Recall: {recall:.2f}")
     print(f"Precision: {precision:.2f}")
     print(f"F1 Score: {f1:.2f}")
 
+
     # Evaluate using segment-based and event-based metrics
-    segment_metrics, event_metrics = evaluate_segment_event_based(df_test_encoded['label'], y_pred)
-    print("\nSegment-Based Metrics:")
-    print(segment_metrics)
-    print("\nEvent-Based Metrics:")
-    print(event_metrics)
+    #segment_metrics, event_metrics = evaluate_segment_event_based(df_test_encoded['label'], y_pred)
+    #print("\nSegment-Based Metrics:")
+    #print(segment_metrics)
+    #print("\nEvent-Based Metrics:")
+    #print(event_metrics)
 
 if __name__ == "__main__":
     main()
