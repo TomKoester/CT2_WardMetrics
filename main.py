@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
+from wardmetrics.core_methods import eval_events,eval_segments
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 import wardmetrics
@@ -93,13 +94,80 @@ def preproccessing(df):
 
     return feature_windows, window_labels
 def evaluate_segment_event_based(y_true, y_pred):
-    segment_metrics = wardmetrics.get_segment_metrics(y_true, y_pred)
-    event_metrics = wardmetrics.get_event_metrics(y_true, y_pred)
+    gt_events = convert_to_events(y_true)
+    pred_events = convert_to_events(y_pred)
+    # returns a list without labels [(start:0 , end: 60),...]
+    gt_events_without_label = [(x[0], x[1]) for x in gt_events]
+    pred_events_without_label = [(x[0], x[1]) for x in pred_events]
+    ground_truth_test = [
+        (40, 60),
+        (73, 75),
+        (90, 100),
+        (125, 135),
+        (150, 157),
+        (190, 215),
+        (220, 230),
+        (235, 250),
+        (275, 292),
+        (340, 368),
+        (389, 410),
+        (455, 468),
+        (487, 512),
+        (532, 546),
+        (550, 568),
+        (583, 612),
+        (632, 645),
+        (655, 690),
+        (710, 754),
+        (763, 785),
+        (791, 812),
+    ]
 
-    return segment_metrics, event_metrics
+    detection_test = [
+        (10, 20),
+        (45, 52),
+        (70, 80),
+        (120, 180),
+        (195, 200),
+        (207, 213),
+        (221, 237),
+        (239, 243),
+        (245, 250),
+    ]
+    # Evaluate using wardmetrics
+    gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(ground_truth_test, gt_events_without_label)
+    #gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(gt_events_without_label, pred_events_without_label)
+    #gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_segments(gt_events_without_label, pred_events_without_label)
+
+    print(gt_event_scores)
+    print(det_event_scores)
+    print(detailed_scores)
+    print(standard_scores)
+
+
+#returns a list of label ranges like events[(start:0 , end: 60, label: 4),...]
+def convert_to_events(labels):
+    events = []
+    current_event = None
+    for i, label in enumerate(labels):
+        if current_event is None:
+            current_event = (i, i, label)
+        elif label != current_event[2]:
+            current_event = (current_event[0], i - 1, current_event[2])
+            events.append(current_event)
+            current_event = (i, i, label)
+
+    if current_event is not None:
+        current_event = (current_event[0], i, current_event[2])
+        events.append(current_event)
+
+    return events
+
 def extract_features(window_data):
     features = window_data.drop('label', axis=1).mean().values
     return features
+
+
 def evaluate_performance(y_true, y_pred):
     accuracy = accuracy_score(y_true, y_pred)
     recall = recall_score(y_true, y_pred, average='weighted')
@@ -107,9 +175,11 @@ def evaluate_performance(y_true, y_pred):
     f1 = f1_score(y_true, y_pred, average='weighted')
 
     return accuracy, recall, precision, f1
+
+
 def main():
-    ctm_file_path_training =r"DATASET\DATASET\P-1_training.ctm"
-    ctm_file_path_test = r"DATASET\DATASET\P-1_test.ctm"
+    ctm_file_path_training =r"DATASET\DATASET\P-2_training.ctm"
+    ctm_file_path_test = r"DATASET\DATASET\P-2_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
     df_test = read_in(ctm_file_path_test)
     df_training = read_in(ctm_file_path_training)
@@ -145,7 +215,7 @@ def main():
 
 
     # Evaluate using segment-based and event-based metrics
-    #segment_metrics, event_metrics = evaluate_segment_event_based(df_test_encoded['label'], y_pred)
+    evaluate_segment_event_based(y_test, y_pred)
     #print("\nSegment-Based Metrics:")
     #print(segment_metrics)
     #print("\nEvent-Based Metrics:")
