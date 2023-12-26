@@ -5,6 +5,8 @@ from sklearn.model_selection import train_test_split
 from wardmetrics.core_methods import eval_events,eval_segments
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+from wardmetrics.visualisations import *
+from wardmetrics.utils import *
 import wardmetrics
 
 def read_in(ctm_file_path):
@@ -93,6 +95,16 @@ def preproccessing(df):
     window_labels = np.array(labels)
 
     return feature_windows, window_labels
+
+
+def remove_zero_range(list_of_tuples):
+    solution = []
+    for curr_tuple in list_of_tuples:
+        if (curr_tuple[0] != curr_tuple[1]):
+            solution.append(curr_tuple)
+    return solution
+
+
 def evaluate_segment_event_based(y_true, y_pred):
     gt_events = convert_to_events(y_true)
     pred_events = convert_to_events(y_pred)
@@ -135,9 +147,23 @@ def evaluate_segment_event_based(y_true, y_pred):
         (245, 250),
     ]
     # Evaluate using wardmetrics
-    gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(ground_truth_test, gt_events_without_label)
-    #gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(gt_events_without_label, pred_events_without_label)
+    print(gt_events_without_label)
+    print(pred_events_without_label)
+
+    gt_events_without_zero_range = remove_zero_range(gt_events_without_label)
+    pred_events_without_zero_range = remove_zero_range(pred_events_without_label)
+
+
+    #print(first_10_elems_gt)
+    #print(first_10_elems_pd)
+    #gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(ground_truth_events=ground_truth_test, detected_events=detection_test)
+    gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(ground_truth_events=gt_events_without_zero_range, detected_events=pred_events_without_zero_range)
+
+    #TODO
     #gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_segments(gt_events_without_label, pred_events_without_label)
+
+    plot_events_with_event_scores(gt_event_scores, det_event_scores, gt_events_without_zero_range, pred_events_without_zero_range, show=False)
+    plot_event_analysis_diagram(detailed_scores, fontsize=8, use_percentage=True)
 
     print(gt_event_scores)
     print(det_event_scores)
@@ -178,8 +204,8 @@ def evaluate_performance(y_true, y_pred):
 
 
 def main():
-    ctm_file_path_training =r"DATASET\DATASET\P-2_training.ctm"
-    ctm_file_path_test = r"DATASET\DATASET\P-2_test.ctm"
+    ctm_file_path_training =r"DATASET\DATASET\P-1_training.ctm"
+    ctm_file_path_test = r"DATASET\DATASET\P-1_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
     df_test = read_in(ctm_file_path_test)
     df_training = read_in(ctm_file_path_training)
@@ -197,7 +223,7 @@ def main():
     X_train, y_train = preproccessing(df_training)
 
     # Preprocess the test data for evaluation
-    X_test, y_test = preproccessing(df_test)
+    X_test, y_true = preproccessing(df_test)
 
     dt_classifier = DecisionTreeClassifier()
     dt_classifier.fit(X_train, y_train)
@@ -206,7 +232,7 @@ def main():
     y_pred = dt_classifier.predict(X_test)
 
     # Evaluate the model
-    accuracy, recall, precision, f1 = evaluate_performance(y_test, y_pred)
+    accuracy, recall, precision, f1 = evaluate_performance(y_true, y_pred)
     print("Traditional Metrics:")
     print(f"Accuracy: {accuracy:.2f}")
     print(f"Recall: {recall:.2f}")
@@ -215,7 +241,7 @@ def main():
 
 
     # Evaluate using segment-based and event-based metrics
-    evaluate_segment_event_based(y_test, y_pred)
+    evaluate_segment_event_based(y_true, y_pred)
     #print("\nSegment-Based Metrics:")
     #print(segment_metrics)
     #print("\nEvent-Based Metrics:")
