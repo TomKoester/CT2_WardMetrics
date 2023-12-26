@@ -100,70 +100,58 @@ def preproccessing(df):
 def remove_zero_range(list_of_tuples):
     solution = []
     for curr_tuple in list_of_tuples:
-        if (curr_tuple[0] != curr_tuple[1]):
+        if curr_tuple[0] != curr_tuple[1]:
             solution.append(curr_tuple)
     return solution
+
+
+def get_event(events, label):
+    result = []
+    for event in events:
+        if event[2] == label:
+            result.append(event)
+    return result
 
 
 def evaluate_segment_event_based(y_true, y_pred):
     gt_events = convert_to_events(y_true)
     pred_events = convert_to_events(y_pred)
-    # returns a list without labels [(start:0 , end: 60),...]
-    gt_events_without_label = [(x[0], x[1]) for x in gt_events]
-    pred_events_without_label = [(x[0], x[1]) for x in pred_events]
-    ground_truth_test = [
-        (40, 60),
-        (73, 75),
-        (90, 100),
-        (125, 135),
-        (150, 157),
-        (190, 215),
-        (220, 230),
-        (235, 250),
-        (275, 292),
-        (340, 368),
-        (389, 410),
-        (455, 468),
-        (487, 512),
-        (532, 546),
-        (550, 568),
-        (583, 612),
-        (632, 645),
-        (655, 690),
-        (710, 754),
-        (763, 785),
-        (791, 812),
-    ]
-
-    detection_test = [
-        (10, 20),
-        (45, 52),
-        (70, 80),
-        (120, 180),
-        (195, 200),
-        (207, 213),
-        (221, 237),
-        (239, 243),
-        (245, 250),
-    ]
-    # Evaluate using wardmetrics
-    print(gt_events_without_label)
-    print(pred_events_without_label)
-
-    gt_events_without_zero_range = remove_zero_range(gt_events_without_label)
-    pred_events_without_zero_range = remove_zero_range(pred_events_without_label)
+    #print(gt_events)
+    # returns a list without labels [(start:0 , end: 60),...
 
 
-    #print(first_10_elems_gt)
-    #print(first_10_elems_pd)
-    #gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(ground_truth_events=ground_truth_test, detected_events=detection_test)
-    gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(ground_truth_events=gt_events_without_zero_range, detected_events=pred_events_without_zero_range)
+    # TODO
+    # currently we just iterate over all samples (all labels). But the metrics is designed to evaluate just one label
+    # at a time so we have to split the labels. I will do it in the following with static number of labels (5) in future
+    # it should be handled automatically
+    gt_event_0 = get_event(gt_events, 0)
+    gt_event_1 = get_event(gt_events, 1)
+    gt_event_2 = get_event(gt_events, 2)
+    gt_event_3 = get_event(gt_events, 3)
+    gt_event_4 = get_event(gt_events, 4)
 
-    #TODO
-    #gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_segments(gt_events_without_label, pred_events_without_label)
+    pd_event_0 = get_event(pred_events, 0)
+    pd_event_1 = get_event(pred_events, 1)
+    pd_event_2 = get_event(pred_events, 2)
+    pd_event_3 = get_event(pred_events, 3)
+    pd_event_4 = get_event(pred_events, 4)
 
-    plot_events_with_event_scores(gt_event_scores, det_event_scores, gt_events_without_zero_range, pred_events_without_zero_range, show=False)
-    plot_event_analysis_diagram(detailed_scores, fontsize=8, use_percentage=True)
+    gt1_events_without_label = [(x[0], x[1]) for x in gt_event_1]
+    pd1_events_without_label = [(x[0], x[1]) for x in pd_event_1]
+
+    pd1_events_without_zero_range = remove_zero_range(pd1_events_without_label)
+    gt1_events_without_zero_range = remove_zero_range(gt1_events_without_label)
+
+    print(gt1_events_without_label)
+    print(pd1_events_without_label)
+
+    gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(ground_truth_events=gt1_events_without_zero_range, detected_events=pd1_events_without_zero_range)
+
+    #Segments
+    #gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_segments(gt_events_without_zero_range, pred_events_without_zero_range)
+    # here we can plot results if needed
+    # plot_events_with_event_scores(gt_event_scores, det_event_scores, gt_events_without_zero_range, pred_events_without_zero_range, show=False)
+    # plot_event_analysis_diagram(detailed_scores, fontsize=8, use_percentage=True)
 
     print(gt_event_scores)
     print(det_event_scores)
@@ -188,6 +176,7 @@ def convert_to_events(labels):
         events.append(current_event)
 
     return events
+
 
 def extract_features(window_data):
     features = window_data.drop('label', axis=1).mean().values
@@ -240,12 +229,8 @@ def main():
     print(f"F1 Score: {f1:.2f}")
 
 
-    # Evaluate using segment-based and event-based metrics
     evaluate_segment_event_based(y_true, y_pred)
-    #print("\nSegment-Based Metrics:")
-    #print(segment_metrics)
-    #print("\nEvent-Based Metrics:")
-    #print(event_metrics)
+
 
 if __name__ == "__main__":
     main()
