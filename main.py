@@ -78,6 +78,12 @@ def preproccessing(df):
 
     label_column = df['label']
     data_columns = df.drop('label', axis=1)
+    data_columns = data_columns.drop(['magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z',
+                                      'gravity_x', 'gravity_y', 'gravity_z', 'timestamp',
+                                      'rotation_vector_x', 'rotation_vector_y', 'rotation_vector_z',
+                                      'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
+                                      'orientation_x', 'orientation_y', 'orientation_z',
+                                      ], axis=1)
 
     # Initialize the scaler
     scaler = StandardScaler()
@@ -91,8 +97,8 @@ def preproccessing(df):
     df = df_scaled
 
     # Windowing
-    window_size = 250
-    overlap = 0
+    window_size = 100
+    overlap = 10
 
     windows = []
     labels = []
@@ -195,9 +201,8 @@ def convert_to_events(labels):
 
 
 def extract_features(window_data):
-    features = window_data.drop('label', axis=1).mean().values
+    features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew']).values.flatten()
     return features
-
 
 def evaluate_performance(y_true, y_pred):
     accuracy = accuracy_score(y_true, y_pred)
@@ -209,8 +214,8 @@ def evaluate_performance(y_true, y_pred):
 
 
 def main():
-    ctm_file_path_training = r"DATASET\DATASET\P-4_training.ctm"
-    ctm_file_path_test = r"DATASET\DATASET\P-4_test.ctm"
+    ctm_file_path_training = r"DATASET\DATASET\P-5_training.ctm"
+    ctm_file_path_test = r"DATASET\DATASET\P-5_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
     df_test = read_in(ctm_file_path_test)
     df_training = read_in(ctm_file_path_training)
@@ -229,14 +234,14 @@ def main():
     # Preprocess the test data for evaluation
     X_test, y_true = preproccessing(df_test)
 
-    dt_classifier = DecisionTreeClassifier(criterion="gini", class_weight="balanced", max_depth=8)
+    dt_classifier = DecisionTreeClassifier(criterion="gini", class_weight="balanced", max_depth=8, max_features='sqrt')
 
     dt_classifier.fit(X_train, y_train)
 
-    # plt.figure(figsize=(18, 12),dpi=300)
-    # plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
-    #          class_names=label_encoder.classes_)
-    # plt.show()
+    plt.figure(figsize=(18, 12),dpi=300)
+    plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
+              class_names=label_encoder.classes_)
+    plt.show()
 
     # Predictions
     y_pred = dt_classifier.predict(X_test)
