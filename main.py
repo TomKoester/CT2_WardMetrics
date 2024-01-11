@@ -97,8 +97,8 @@ def preproccessing(df):
     df = df_scaled
 
     # Windowing
-    window_size = 100
-    overlap = 10
+    window_size = 200
+    overlap = 20
 
     windows = []
     labels = []
@@ -212,13 +212,9 @@ def evaluate_performance(y_true, y_pred):
 
     return accuracy, recall, precision, f1
 
-
-def main():
-    ctm_file_path_training = r"DATASET\DATASET\P-5_training.ctm"
-    ctm_file_path_test = r"DATASET\DATASET\P-5_test.ctm"
-    # Reads in the provided sample data (adjust the path if you want to run it)
-    df_test = read_in(ctm_file_path_test)
-    df_training = read_in(ctm_file_path_training)
+def help(train, test, set):
+    df_test = read_in(test)
+    df_training = read_in(train)
     # print(df_test)
     # print(df_training)
 
@@ -234,27 +230,56 @@ def main():
     # Preprocess the test data for evaluation
     X_test, y_true = preproccessing(df_test)
 
-    dt_classifier = DecisionTreeClassifier(criterion="gini", class_weight="balanced", max_depth=8, max_features='sqrt')
+    dt_classifier = DecisionTreeClassifier(criterion="gini", class_weight="balanced", max_depth=8, max_features='log2',
+                                           random_state=123, min_samples_leaf=3, splitter="random"
+                                           )
 
     dt_classifier.fit(X_train, y_train)
 
-    plt.figure(figsize=(18, 12),dpi=300)
-    plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
-              class_names=label_encoder.classes_)
-    plt.show()
+    # plt.figure(figsize=(18, 12),dpi=300)
+    # plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
+    #          class_names=label_encoder.classes_)
+    # plt.show()
 
     # Predictions
     y_pred = dt_classifier.predict(X_test)
 
     # Evaluate the model
     accuracy, recall, precision, f1 = evaluate_performance(y_true, y_pred)
-    print("Traditional Metrics:")
+
+    print("Traditional Metrics Set " + set + ":")
     print(f"Accuracy: {accuracy:.2f}")
     print(f"Recall: {recall:.2f}")
     print(f"Precision: {precision:.2f}")
-    print(f"F1 Score: {f1:.2f}")
+    print(f"F1 Score: {f1:.2f}\n")
 
     # evaluate_segment_event_based(y_true, y_pred)
+
+def main():
+    ctm_file_path_training1 = r"DATASET\DATASET\P-1_training.ctm"
+    ctm_file_path_test1 = r"DATASET\DATASET\P-1_test.ctm"
+    # Reads in the provided sample data (adjust the path if you want to run it)
+    help(test=ctm_file_path_test1, train=ctm_file_path_training1, set="1")
+
+    ctm_file_path_training2 = r"DATASET\DATASET\P-2_training.ctm"
+    ctm_file_path_test2 = r"DATASET\DATASET\P-2_test.ctm"
+    # Reads in the provided sample data (adjust the path if you want to run it)
+    help(test=ctm_file_path_test2, train=ctm_file_path_training2, set="2")
+
+    ctm_file_path_training3 = r"DATASET\DATASET\P-3_training.ctm"
+    ctm_file_path_test3 = r"DATASET\DATASET\P-3_test.ctm"
+    # Reads in the provided sample data (adjust the path if you want to run it)
+    help(test=ctm_file_path_test3, train=ctm_file_path_training3, set="3")
+
+    ctm_file_path_training4 = r"DATASET\DATASET\P-4_training.ctm"
+    ctm_file_path_test4 = r"DATASET\DATASET\P-4_test.ctm"
+    # Reads in the provided sample data (adjust the path if you want to run it)
+    help(test=ctm_file_path_test4, train=ctm_file_path_training4, set="4")
+
+    ctm_file_path_training5 = r"DATASET\DATASET\P-5_training.ctm"
+    ctm_file_path_test5 = r"DATASET\DATASET\P-5_test.ctm"
+    # Reads in the provided sample data (adjust the path if you want to run it)
+    help(test=ctm_file_path_test5, train=ctm_file_path_training5, set="5")
 
 
 if __name__ == "__main__":
