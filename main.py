@@ -1,13 +1,14 @@
 import numpy as np
 import pandas as pd
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, plot_tree
 from sklearn.model_selection import train_test_split
-from wardmetrics.core_methods import eval_events,eval_segments
-from sklearn.preprocessing import LabelEncoder
+from wardmetrics.core_methods import eval_events, eval_segments
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 from wardmetrics.visualisations import *
 from wardmetrics.utils import *
 import wardmetrics
+
 
 def read_in(ctm_file_path):
     with open(ctm_file_path, 'r') as file:
@@ -55,11 +56,15 @@ def read_in(ctm_file_path):
                      magnetic_field_y, magnetic_field_z])
 
     columns = [
-        'timestamp', 'label', 'accelerometer_x', 'accelerometer_y', 'accelerometer_z', 'gyro_x', 'gyro_y', 'gyro_z',
-        'linear_accel_x', 'linear_accel_y', 'linear_accel_z', 'gravity_x', 'gravity_y', 'gravity_z',
-        'orientation_x', 'orientation_y', 'orientation_z', 'rotation_vector_x', 'rotation_vector_y',
-        'rotation_vector_z', 'rotation_vector_scalar', 'rotation_vector_heading_accuracy', 'magnetic_field_x',
-        'magnetic_field_y', 'magnetic_field_z'
+        'timestamp', 'label',
+        'accelerometer_x', 'accelerometer_y', 'accelerometer_z',
+        'gyro_x', 'gyro_y', 'gyro_z',
+        'linear_accel_x', 'linear_accel_y', 'linear_accel_z',
+        'gravity_x', 'gravity_y', 'gravity_z',
+        'orientation_x', 'orientation_y', 'orientation_z',
+        'rotation_vector_x', 'rotation_vector_y', 'rotation_vector_z',
+        'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
+        'magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z'
     ]
 
     df = pd.DataFrame(data, columns=columns)
@@ -70,14 +75,43 @@ def read_in(ctm_file_path):
     df.index = df.index + 1
     df.index.name = 'Line Number'
 
-
     return df
 
 
 def preproccessing(df):
+
+    label_column = df['label']
+    data_columns = df.drop('label', axis=1)
+    data_columns = data_columns.drop(['gyro_x', 'gyro_y', 'gyro_z',
+                                      'linear_accel_x', 'linear_accel_y', 'linear_accel_z',
+                                      'gravity_x', 'gravity_y', 'gravity_z', 'timestamp',
+                                      'orientation_x', 'orientation_y', 'orientation_z',
+
+                                      'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
+                                      'magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z',
+
+
+
+
+
+
+
+                                      ], axis=1)
+
+    # Initialize the scaler
+    scaler = StandardScaler()
+
+    # Fit and transform the data columns
+    data_columns_scaled = scaler.fit_transform(data_columns)
+
+    # Create a new DataFrame with the scaled features and the original label column
+    df_scaled = pd.DataFrame(data_columns_scaled, columns=data_columns.columns)
+    df_scaled['label'] = label_column
+    df = df_scaled
+
     # Windowing
-    window_size = 100
-    overlap = 10
+    window_size = 200
+    overlap = 20
 
     windows = []
     labels = []
@@ -86,6 +120,7 @@ def preproccessing(df):
         window_data = df.iloc[i:i + window_size]
 
         window_features = extract_features(window_data)
+
         windows.append(window_features)
 
         window_label = window_data['label'].mode().values[0]
@@ -116,9 +151,8 @@ def get_event(events, label):
 def evaluate_segment_event_based(y_true, y_pred):
     gt_events = convert_to_events(y_true)
     pred_events = convert_to_events(y_pred)
-    #print(gt_events)
+    # print(gt_events)
     # returns a list without labels [(start:0 , end: 60),...
-
 
     # TODO
     # currently we just iterate over all samples (all labels). But the metrics is designed to evaluate just one label
@@ -145,10 +179,11 @@ def evaluate_segment_event_based(y_true, y_pred):
     print(gt1_events_without_label)
     print(pd1_events_without_label)
 
-    gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(ground_truth_events=gt1_events_without_zero_range, detected_events=pd1_events_without_zero_range)
+    gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(
+        ground_truth_events=gt1_events_without_zero_range, detected_events=pd1_events_without_zero_range)
 
-    #Segments
-    #gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_segments(gt_events_without_zero_range, pred_events_without_zero_range)
+    # Segments
+    # gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_segments(gt_events_without_zero_range, pred_events_without_zero_range)
     # here we can plot results if needed
     # plot_events_with_event_scores(gt_event_scores, det_event_scores, gt_events_without_zero_range, pred_events_without_zero_range, show=False)
     # plot_event_analysis_diagram(detailed_scores, fontsize=8, use_percentage=True)
@@ -159,7 +194,7 @@ def evaluate_segment_event_based(y_true, y_pred):
     print(standard_scores)
 
 
-#returns a list of label ranges like events[(start:0 , end: 60, label: 4),...]
+# returns a list of label ranges like events[(start:0 , end: 60, label: 4),...]
 def convert_to_events(labels):
     events = []
     current_event = None
@@ -179,28 +214,22 @@ def convert_to_events(labels):
 
 
 def extract_features(window_data):
-    features = window_data.drop('label', axis=1).mean().values
+    features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew']).values.flatten()
     return features
-
 
 def evaluate_performance(y_true, y_pred):
     accuracy = accuracy_score(y_true, y_pred)
     recall = recall_score(y_true, y_pred, average='weighted')
-    precision = precision_score(y_true, y_pred, average='weighted')
+    precision = precision_score(y_true, y_pred, average='weighted', zero_division=1)
     f1 = f1_score(y_true, y_pred, average='weighted')
 
     return accuracy, recall, precision, f1
 
-
-def main():
-    ctm_file_path_training =r"DATASET\DATASET\P-1_training.ctm"
-    ctm_file_path_test = r"DATASET\DATASET\P-1_test.ctm"
-    # Reads in the provided sample data (adjust the path if you want to run it)
-    df_test = read_in(ctm_file_path_test)
-    df_training = read_in(ctm_file_path_training)
-    #print(df_test)
-    #print(df_training)
-
+def help(train, test, set):
+    df_test = read_in(test)
+    df_training = read_in(train)
+    # print(df_test)
+    # print(df_training)
 
     # Preprocess the data for training
     # Label Encoding like encodes 'walking' as '0' and 'standing' as '1' and so on...
@@ -214,22 +243,57 @@ def main():
     # Preprocess the test data for evaluation
     X_test, y_true = preproccessing(df_test)
 
-    dt_classifier = DecisionTreeClassifier()
+    dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8, max_features='sqrt',
+                                           random_state=123, min_samples_leaf=3, splitter="random",
+
+                                           )
+
     dt_classifier.fit(X_train, y_train)
+
+    # plt.figure(figsize=(18, 12),dpi=300)
+    # plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
+    #          class_names=label_encoder.classes_)
+    # plt.show()
 
     # Predictions
     y_pred = dt_classifier.predict(X_test)
 
     # Evaluate the model
     accuracy, recall, precision, f1 = evaluate_performance(y_true, y_pred)
-    print("Traditional Metrics:")
+
+    print("Traditional Metrics Set " + set + ":")
     print(f"Accuracy: {accuracy:.2f}")
     print(f"Recall: {recall:.2f}")
     print(f"Precision: {precision:.2f}")
-    print(f"F1 Score: {f1:.2f}")
+    print(f"F1 Score: {f1:.2f}\n")
 
+    # evaluate_segment_event_based(y_true, y_pred)
 
-    evaluate_segment_event_based(y_true, y_pred)
+def main():
+    ctm_file_path_training1 = r"DATASET\DATASET\P-1_training.ctm"
+    ctm_file_path_test1 = r"DATASET\DATASET\P-1_test.ctm"
+    # Reads in the provided sample data (adjust the path if you want to run it)
+    help(test=ctm_file_path_test1, train=ctm_file_path_training1, set="1")
+
+    ctm_file_path_training2 = r"DATASET\DATASET\P-2_training.ctm"
+    ctm_file_path_test2 = r"DATASET\DATASET\P-2_test.ctm"
+    # Reads in the provided sample data (adjust the path if you want to run it)
+    help(test=ctm_file_path_test2, train=ctm_file_path_training2, set="2")
+
+    ctm_file_path_training3 = r"DATASET\DATASET\P-3_training.ctm"
+    ctm_file_path_test3 = r"DATASET\DATASET\P-3_test.ctm"
+    # Reads in the provided sample data (adjust the path if you want to run it)
+    help(test=ctm_file_path_test3, train=ctm_file_path_training3, set="3")
+
+    ctm_file_path_training4 = r"DATASET\DATASET\P-4_training.ctm"
+    ctm_file_path_test4 = r"DATASET\DATASET\P-4_test.ctm"
+    # Reads in the provided sample data (adjust the path if you want to run it)
+    help(test=ctm_file_path_test4, train=ctm_file_path_training4, set="4")
+
+    ctm_file_path_training5 = r"DATASET\DATASET\P-5_training.ctm"
+    ctm_file_path_test5 = r"DATASET\DATASET\P-5_test.ctm"
+    # Reads in the provided sample data (adjust the path if you want to run it)
+    help(test=ctm_file_path_test5, train=ctm_file_path_training5, set="5")
 
 
 if __name__ == "__main__":
