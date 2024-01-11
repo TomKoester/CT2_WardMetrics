@@ -56,11 +56,15 @@ def read_in(ctm_file_path):
                      magnetic_field_y, magnetic_field_z])
 
     columns = [
-        'timestamp', 'label', 'accelerometer_x', 'accelerometer_y', 'accelerometer_z', 'gyro_x', 'gyro_y', 'gyro_z',
-        'linear_accel_x', 'linear_accel_y', 'linear_accel_z', 'gravity_x', 'gravity_y', 'gravity_z',
-        'orientation_x', 'orientation_y', 'orientation_z', 'rotation_vector_x', 'rotation_vector_y',
-        'rotation_vector_z', 'rotation_vector_scalar', 'rotation_vector_heading_accuracy', 'magnetic_field_x',
-        'magnetic_field_y', 'magnetic_field_z'
+        'timestamp', 'label',
+        'accelerometer_x', 'accelerometer_y', 'accelerometer_z',
+        'gyro_x', 'gyro_y', 'gyro_z',
+        'linear_accel_x', 'linear_accel_y', 'linear_accel_z',
+        'gravity_x', 'gravity_y', 'gravity_z',
+        'orientation_x', 'orientation_y', 'orientation_z',
+        'rotation_vector_x', 'rotation_vector_y', 'rotation_vector_z',
+        'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
+        'magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z'
     ]
 
     df = pd.DataFrame(data, columns=columns)
@@ -78,11 +82,20 @@ def preproccessing(df):
 
     label_column = df['label']
     data_columns = df.drop('label', axis=1)
-    data_columns = data_columns.drop(['magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z',
+    data_columns = data_columns.drop(['gyro_x', 'gyro_y', 'gyro_z',
+                                      'linear_accel_x', 'linear_accel_y', 'linear_accel_z',
                                       'gravity_x', 'gravity_y', 'gravity_z', 'timestamp',
-                                      'rotation_vector_x', 'rotation_vector_y', 'rotation_vector_z',
-                                      'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
                                       'orientation_x', 'orientation_y', 'orientation_z',
+
+                                      'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
+                                      'magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z',
+
+
+
+
+
+
+
                                       ], axis=1)
 
     # Initialize the scaler
@@ -230,8 +243,9 @@ def help(train, test, set):
     # Preprocess the test data for evaluation
     X_test, y_true = preproccessing(df_test)
 
-    dt_classifier = DecisionTreeClassifier(criterion="gini", class_weight="balanced", max_depth=8, max_features='log2',
-                                           random_state=123, min_samples_leaf=3, splitter="random"
+    dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8, max_features='sqrt',
+                                           random_state=123, min_samples_leaf=3, splitter="random",
+
                                            )
 
     dt_classifier.fit(X_train, y_train)
