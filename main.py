@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier, plot_tree
@@ -86,7 +87,6 @@ def preproccessing(df):
                                       'linear_accel_x', 'linear_accel_y', 'linear_accel_z',
                                       'gravity_x', 'gravity_y', 'gravity_z', 'timestamp',
                                       'orientation_x', 'orientation_y', 'orientation_z',
-
                                       'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
                                       'magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z',
 
@@ -110,8 +110,8 @@ def preproccessing(df):
     df = df_scaled
 
     # Windowing
-    window_size = 200
-    overlap = 20
+    window_size = 50
+    overlap = 15
 
     windows = []
     labels = []
@@ -227,7 +227,20 @@ def evaluate_performance(y_true, y_pred):
 
 def help(train, test, set):
     df_test = read_in(test)
+
+
     df_training = read_in(train)
+    labels = df_training['label'].unique()
+    colors = plt.cm.rainbow(np.linspace(0,1,len(labels)))
+
+    for i, label in enumerate(labels):
+        df_label = df_training[df_training['label'] == label]
+        plt.plot(df_label['timestamp'], df_label['gyro_x'], label = label, color=colors[i],marker='o', linestyle='-', markersize=1)
+    plt.xlabel('Timestamp')
+    plt.ylabel('Gyro x')
+    plt.legend()
+
+    plt.show()
     # print(df_test)
     # print(df_training)
 
@@ -243,17 +256,18 @@ def help(train, test, set):
     # Preprocess the test data for evaluation
     X_test, y_true = preproccessing(df_test)
 
-    dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8, max_features='sqrt',
+    dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
+                                           max_features='log2',
                                            random_state=123, min_samples_leaf=3, splitter="random",
 
                                            )
 
     dt_classifier.fit(X_train, y_train)
 
-    # plt.figure(figsize=(18, 12),dpi=300)
-    # plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
-    #          class_names=label_encoder.classes_)
-    # plt.show()
+    #plt.figure(figsize=(18, 12),dpi=300)
+    #plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
+    #         class_names=label_encoder.classes_)
+    #plt.show()
 
     # Predictions
     y_pred = dt_classifier.predict(X_test)
