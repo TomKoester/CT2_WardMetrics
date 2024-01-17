@@ -183,24 +183,35 @@ def evaluate_segment_event_based(y_true, y_pred):
     print("\n")
 
 
-def calculate_event_score(gt_event_1, pd_event_1):
-    gt1_events_without_label = [(x[0], x[1]) for x in gt_event_1]
-    pd1_events_without_label = [(x[0], x[1]) for x in pd_event_1]
-    pd1_events_without_zero_range = remove_zero_range(pd1_events_without_label)
-    gt1_events_without_zero_range = remove_zero_range(gt1_events_without_label)
-    print(gt1_events_without_label)
-    print(pd1_events_without_label)
-    gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(
-        ground_truth_events=gt1_events_without_zero_range, detected_events=pd1_events_without_zero_range)
-    # Segments
-    # gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_segments(gt_events_without_zero_range, pred_events_without_zero_range)
-    # here we can plot results if needed
-    # plot_events_with_event_scores(gt_event_scores, det_event_scores, gt_events_without_zero_range, pred_events_without_zero_range, show=False)
-    # plot_event_analysis_diagram(detailed_scores, fontsize=8, use_percentage=True)
-    print(gt_event_scores)
-    print(det_event_scores)
-    print(detailed_scores)
-    print(standard_scores)
+def calculate_event_score(gt_event, pd_event):
+    gt_events_without_label = [(x[0], x[1]) for x in gt_event]
+    pd_events_without_label = [(x[0], x[1]) for x in pd_event]
+    pd_events_without_zero_range = remove_zero_range(pd_events_without_label)
+    gt_events_without_zero_range = remove_zero_range(gt_events_without_label)
+    print(gt_events_without_label)
+    print(pd_events_without_label)
+    if len(gt_events_without_zero_range) == 0:
+        print("No ground truth events")
+    elif len(pd_events_without_zero_range) == 0:
+        print("No predicted events")
+    else:
+        gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(
+            ground_truth_events=gt_events_without_zero_range, detected_events=pd_events_without_zero_range)
+        # Segments
+        twoset_results, segments_with_scores, segment_counts, normed_segment_counts = eval_segments(gt_events_without_zero_range, pd_events_without_zero_range)
+        # here we can plot results if needed
+        # plot_events_with_event_scores(gt_event_scores, det_event_scores, gt_events_without_zero_range, pred_events_without_zero_range, show=False)
+        # plot_event_analysis_diagram(detailed_scores, fontsize=8, use_percentage=True)
+        print("\nEventBased:\n")
+        print(gt_event_scores)
+        print(det_event_scores)
+        print(detailed_scores)
+        print(standard_scores)
+        print("\nSegmentBased:\n")
+        print(twoset_results)
+        print(segments_with_scores)
+        print(segment_counts)
+        print(normed_segment_counts)
 
 
 # returns a list of label ranges like events[(start:0 , end: 60, label: 4),...]
@@ -238,8 +249,6 @@ def evaluate_performance(y_true, y_pred):
 
 def help(train, test, set):
     df_test = read_in(test)
-
-
     df_training = read_in(train)
     # labels = df_training['label'].unique()
     # colors = plt.cm.rainbow(np.linspace(0,1,len(labels)))
@@ -293,6 +302,7 @@ def help(train, test, set):
     print(f"F1 Score: {f1:.2f}\n")
     print("\nWard Metrics Set " + set + ":")
     evaluate_segment_event_based(y_true, y_pred)
+
 
 def main():
     ctm_file_path_training1 = r"DATASET\DATASET\P-1_training.ctm"
