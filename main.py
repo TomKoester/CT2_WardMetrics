@@ -170,24 +170,33 @@ def evaluate_segment_event_based(y_true, y_pred):
     pd_event_3 = get_event(pred_events, 3)
     pd_event_4 = get_event(pred_events, 4)
 
+    print("\nlabel 0\n")
+    calculate_event_score(gt_event_0, pd_event_0)
+    print("\nlabel 1\n")
+    calculate_event_score(gt_event_1, pd_event_1)
+    print("\nlabel 2\n")
+    calculate_event_score(gt_event_2, pd_event_2)
+    print("\nlabel3\n")
+    calculate_event_score(gt_event_3, pd_event_3)
+    print("\nlabel4\n")
+    calculate_event_score(gt_event_4, pd_event_4)
+    print("\n")
+
+
+def calculate_event_score(gt_event_1, pd_event_1):
     gt1_events_without_label = [(x[0], x[1]) for x in gt_event_1]
     pd1_events_without_label = [(x[0], x[1]) for x in pd_event_1]
-
     pd1_events_without_zero_range = remove_zero_range(pd1_events_without_label)
     gt1_events_without_zero_range = remove_zero_range(gt1_events_without_label)
-
     print(gt1_events_without_label)
     print(pd1_events_without_label)
-
     gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(
         ground_truth_events=gt1_events_without_zero_range, detected_events=pd1_events_without_zero_range)
-
     # Segments
     # gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_segments(gt_events_without_zero_range, pred_events_without_zero_range)
     # here we can plot results if needed
     # plot_events_with_event_scores(gt_event_scores, det_event_scores, gt_events_without_zero_range, pred_events_without_zero_range, show=False)
     # plot_event_analysis_diagram(detailed_scores, fontsize=8, use_percentage=True)
-
     print(gt_event_scores)
     print(det_event_scores)
     print(detailed_scores)
@@ -217,6 +226,7 @@ def extract_features(window_data):
     features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew']).values.flatten()
     return features
 
+
 def evaluate_performance(y_true, y_pred):
     accuracy = accuracy_score(y_true, y_pred)
     recall = recall_score(y_true, y_pred, average='weighted')
@@ -225,22 +235,23 @@ def evaluate_performance(y_true, y_pred):
 
     return accuracy, recall, precision, f1
 
+
 def help(train, test, set):
     df_test = read_in(test)
 
 
     df_training = read_in(train)
-    labels = df_training['label'].unique()
-    colors = plt.cm.rainbow(np.linspace(0,1,len(labels)))
+    # labels = df_training['label'].unique()
+    # colors = plt.cm.rainbow(np.linspace(0,1,len(labels)))
 
-    for i, label in enumerate(labels):
-        df_label = df_training[df_training['label'] == label]
-        plt.plot(df_label['timestamp'], df_label['gyro_x'], label = label, color=colors[i],marker='o', linestyle='-', markersize=1)
-    plt.xlabel('Timestamp')
-    plt.ylabel('Gyro x')
-    plt.legend()
+    # for i, label in enumerate(labels):
+    #     df_label = df_training[df_training['label'] == label]
+    #     plt.plot(df_label['timestamp'], df_label['gyro_x'], label = label, color=colors[i],marker='o', linestyle='-', markersize=1)
+    # plt.xlabel('Timestamp')
+    # plt.ylabel('Gyro x')
+    # plt.legend()
 
-    plt.show()
+    # plt.show()
     # print(df_test)
     # print(df_training)
 
@@ -280,8 +291,8 @@ def help(train, test, set):
     print(f"Recall: {recall:.2f}")
     print(f"Precision: {precision:.2f}")
     print(f"F1 Score: {f1:.2f}\n")
-
-    # evaluate_segment_event_based(y_true, y_pred)
+    print("\nWard Metrics Set " + set + ":")
+    evaluate_segment_event_based(y_true, y_pred)
 
 def main():
     ctm_file_path_training1 = r"DATASET\DATASET\P-1_training.ctm"
