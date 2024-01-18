@@ -151,13 +151,11 @@ def get_event(events, label):
 def evaluate_segment_event_based(y_true, y_pred):
     gt_events = convert_to_events(y_true)
     pred_events = convert_to_events(y_pred)
+    start, end, label = gt_events[-1]
     # print(gt_events)
     # returns a list without labels [(start:0 , end: 60),...
 
-    # TODO
-    # currently we just iterate over all samples (all labels). But the metrics is designed to evaluate just one label
-    # at a time so we have to split the labels. I will do it in the following with static number of labels (5) in future
-    # it should be handled automatically
+
     gt_event_0 = get_event(gt_events, 0)
     gt_event_1 = get_event(gt_events, 1)
     gt_event_2 = get_event(gt_events, 2)
@@ -171,25 +169,29 @@ def evaluate_segment_event_based(y_true, y_pred):
     pd_event_4 = get_event(pred_events, 4)
 
     print("\nlabel 0\n")
-    calculate_event_score(gt_event_0, pd_event_0)
+    calculate_event_score(gt_event_0, pd_event_0, end)
     print("\nlabel 1\n")
-    calculate_event_score(gt_event_1, pd_event_1)
+    calculate_event_score(gt_event_1, pd_event_1, end)
     print("\nlabel 2\n")
-    calculate_event_score(gt_event_2, pd_event_2)
+    calculate_event_score(gt_event_2, pd_event_2, end)
     print("\nlabel3\n")
-    calculate_event_score(gt_event_3, pd_event_3)
+    calculate_event_score(gt_event_3, pd_event_3, end)
     print("\nlabel4\n")
-    calculate_event_score(gt_event_4, pd_event_4)
+    calculate_event_score(gt_event_4, pd_event_4, end)
     print("\n")
 
 
-def calculate_event_score(gt_event, pd_event):
+def calculate_event_score(gt_event, pd_event, end):
     gt_events_without_label = [(x[0], x[1]) for x in gt_event]
     pd_events_without_label = [(x[0], x[1]) for x in pd_event]
     pd_events_without_zero_range = remove_zero_range(pd_events_without_label)
     gt_events_without_zero_range = remove_zero_range(gt_events_without_label)
     print(gt_events_without_label)
     print(pd_events_without_label)
+    # without zero range
+    print("\n wiothout zero range")
+    print(gt_events_without_zero_range)
+    print(pd_events_without_zero_range)
     if len(gt_events_without_zero_range) == 0:
         print("No ground truth events")
     elif len(pd_events_without_zero_range) == 0:
@@ -198,7 +200,7 @@ def calculate_event_score(gt_event, pd_event):
         gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(
             ground_truth_events=gt_events_without_zero_range, detected_events=pd_events_without_zero_range)
         # Segments
-        twoset_results, segments_with_scores, segment_counts, normed_segment_counts = eval_segments(gt_events_without_zero_range, pd_events_without_zero_range)
+        twoset_results, segments_with_scores, segment_counts, normed_segment_counts = eval_segments(gt_events_without_zero_range, pd_events_without_zero_range,evaluation_end=end)
         # here we can plot results if needed
         # plot_events_with_event_scores(gt_event_scores, det_event_scores, gt_events_without_zero_range, pred_events_without_zero_range, show=False)
         # plot_event_analysis_diagram(detailed_scores, fontsize=8, use_percentage=True)
