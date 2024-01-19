@@ -69,8 +69,7 @@ def read_in(ctm_file_path):
     ]
 
     df = pd.DataFrame(data, columns=columns)
-    # Drop the rows where it has NaN values for better acc (We can later refactor
-    # that and fill the NaN with the Median of the Column instead).
+
     df = df.dropna()
 
     df.index = df.index + 1
@@ -83,6 +82,7 @@ def preprocessing(df):
 
     label_column = df['label']
     data_columns = df.drop('label', axis=1)
+    # test with linear acceleration
     data_columns = data_columns.drop(['rotation_vector_x', 'rotation_vector_y', 'rotation_vector_z',
                                       'linear_accel_x', 'linear_accel_y', 'linear_accel_z',
                                       'gravity_x', 'gravity_y', 'gravity_z', 'timestamp',
@@ -108,6 +108,7 @@ def preprocessing(df):
     df_scaled = pd.DataFrame(data_columns_scaled, columns=data_columns.columns)
     df_scaled['label'] = label_column
     df = df_scaled
+
 
     # Windowing
     window_size = 50
@@ -236,7 +237,7 @@ def convert_to_events(labels):
 
 
 def extract_features(window_data):
-    features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median', 'var'
+    features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median', 'var',
                                                       ]).values.flatten()
     return features
 
@@ -273,15 +274,17 @@ def help(train, test, set):
     df_training['label'] = label_encoder.fit_transform(df_training['label'])
     df_test['label'] = label_encoder.transform(df_test['label'])
 
+
     # Preprocess the data for training
     X_train, y_train = preprocessing(df_training)
+
 
     # Preprocess the test data for evaluation
     X_test, y_true = preprocessing(df_test)
 
     dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
-                                           max_features='log2',
-                                            min_samples_leaf=3, splitter="random",
+                                           max_features='log2', min_samples_leaf=3, splitter="random",
+                                           random_state=1
 
                                            )
 
