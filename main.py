@@ -79,11 +79,11 @@ def read_in(ctm_file_path):
     return df
 
 
-def preproccessing(df):
+def preprocessing(df):
 
     label_column = df['label']
     data_columns = df.drop('label', axis=1)
-    data_columns = data_columns.drop(['gyro_x', 'gyro_y', 'gyro_z',
+    data_columns = data_columns.drop(['rotation_vector_x', 'rotation_vector_y', 'rotation_vector_z',
                                       'linear_accel_x', 'linear_accel_y', 'linear_accel_z',
                                       'gravity_x', 'gravity_y', 'gravity_z', 'timestamp',
                                       'orientation_x', 'orientation_y', 'orientation_z',
@@ -273,10 +273,10 @@ def help(train, test, set):
     df_test['label'] = label_encoder.transform(df_test['label'])
 
     # Preprocess the data for training
-    X_train, y_train = preproccessing(df_training)
+    X_train, y_train = preprocessing(df_training)
 
     # Preprocess the test data for evaluation
-    X_test, y_true = preproccessing(df_test)
+    X_test, y_true = preprocessing(df_test)
 
     dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
                                            max_features='log2',
