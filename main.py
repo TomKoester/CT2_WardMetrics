@@ -282,10 +282,9 @@ def help(train, test, set):
     # Preprocess the test data for evaluation
     X_test, y_true = preprocessing(df_test)
 
-    dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
-                                           max_features='log2', min_samples_leaf=3, splitter="random",
-                                           random_state=1
-
+    dt_classifier = DecisionTreeClassifier(criterion="gini", class_weight="balanced", max_depth=8,
+                                           max_features='sqrt', min_samples_leaf=3, splitter="random",
+                                          
                                            )
 
     dt_classifier.fit(X_train, y_train)
