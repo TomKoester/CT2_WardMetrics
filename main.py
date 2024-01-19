@@ -235,7 +235,7 @@ def convert_to_events(labels):
 
     return events
 
-
+# TODO check which features are unimportant and test correlation as feature
 def extract_features(window_data):
     features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median', 'var',
                                                       ]).values.flatten()
