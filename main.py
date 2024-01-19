@@ -236,7 +236,8 @@ def convert_to_events(labels):
 
 
 def extract_features(window_data):
-    features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew']).values.flatten()
+    features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median', 'var'
+                                                      ]).values.flatten()
     return features
 
 
@@ -280,7 +281,7 @@ def help(train, test, set):
 
     dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
                                            max_features='log2',
-                                           random_state=123, min_samples_leaf=3, splitter="random",
+                                            min_samples_leaf=3, splitter="random",
 
                                            )
 
@@ -302,8 +303,8 @@ def help(train, test, set):
     print(f"Recall: {recall:.2f}")
     print(f"Precision: {precision:.2f}")
     print(f"F1 Score: {f1:.2f}\n")
-    print("\nWard Metrics Set " + set + ":")
-    evaluate_segment_event_based(y_true, y_pred)
+    # print("\nWard Metrics Set " + set + ":")
+    # evaluate_segment_event_based(y_true, y_pred)
 
 
 def main():
