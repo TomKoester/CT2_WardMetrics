@@ -79,7 +79,6 @@ def read_in(ctm_file_path):
 
 
 def preprocessing(df):
-
     label_column = df['label']
     data_columns = df.drop('label', axis=1)
     # test with linear acceleration
@@ -89,12 +88,6 @@ def preprocessing(df):
                                       'orientation_x', 'orientation_y', 'orientation_z',
                                       'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
                                       'magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z',
-
-
-
-
-
-
 
                                       ], axis=1)
 
@@ -108,7 +101,6 @@ def preprocessing(df):
     df_scaled = pd.DataFrame(data_columns_scaled, columns=data_columns.columns)
     df_scaled['label'] = label_column
     df = df_scaled
-
 
     # Windowing
     window_size = 50
@@ -129,6 +121,8 @@ def preprocessing(df):
 
     feature_windows = np.array(windows)
     window_labels = np.array(labels)
+
+    # feature_windows = np.delete(feature_windows, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,  ], axis=1)
 
     return feature_windows, window_labels
 
@@ -155,7 +149,6 @@ def evaluate_segment_event_based(y_true, y_pred):
     start, end, label = gt_events[-1]
     # print(gt_events)
     # returns a list without labels [(start:0 , end: 60),...
-
 
     gt_event_0 = get_event(gt_events, 0)
     gt_event_1 = get_event(gt_events, 1)
@@ -201,7 +194,8 @@ def calculate_event_score(gt_event, pd_event, end):
         gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(
             ground_truth_events=gt_events_without_zero_range, detected_events=pd_events_without_zero_range)
         # Segments
-        twoset_results, segments_with_scores, segment_counts, normed_segment_counts = eval_segments(gt_events_without_zero_range, pd_events_without_zero_range,evaluation_end=end)
+        twoset_results, segments_with_scores, segment_counts, normed_segment_counts = eval_segments(
+            gt_events_without_zero_range, pd_events_without_zero_range, evaluation_end=end)
         # here we can plot results if needed
         # plot_events_with_event_scores(gt_event_scores, det_event_scores, gt_events_without_zero_range, pred_events_without_zero_range, show=False)
         # plot_event_analysis_diagram(detailed_scores, fontsize=8, use_percentage=True)
@@ -235,11 +229,41 @@ def convert_to_events(labels):
 
     return events
 
+
 # TODO check which features are unimportant and test correlation as feature
 def extract_features(window_data):
-    features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median', 'var',
+    basic_features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median', 'var',
                                                       ]).values.flatten()
-    return features
+    accelerometer_cols1 = ['accelerometer_x', 'accelerometer_y']
+    accelerometer_cols2 = ['accelerometer_x', 'accelerometer_z']
+    accelerometer_cols3 = ['accelerometer_y', 'accelerometer_z']
+
+    gyroscope_cols1 = ['gyro_x', 'gyro_y', ]
+    gyroscope_cols2 = ['gyro_x', 'gyro_z', ]
+    gyroscope_cols3 = ['gyro_y', 'gyro_z', ]
+
+    #accelerometer_data1 = window_data[accelerometer_cols1]
+    #accelerometer_data2 = window_data[accelerometer_cols2]
+    #accelerometer_data3 = window_data[accelerometer_cols3]
+    #gyroscope_data1 = window_data[gyroscope_cols1]
+    #gyroscope_data2 = window_data[gyroscope_cols2]
+    #gyroscope_data3 = window_data[gyroscope_cols3]
+
+    # Calculate correlation coefficients
+    #correlation_accelerometer1 = accelerometer_data1.corr().values.flatten()
+    #correlation_accelerometer2 = accelerometer_data2.corr().values.flatten()
+    #correlation_accelerometer3 = accelerometer_data3.corr().values.flatten()
+
+    #correlation_gyroscope1 = gyroscope_data1.corr().values.flatten()
+    #correlation_gyroscope2 = gyroscope_data2.corr().values.flatten()
+    #correlation_gyroscope3 = gyroscope_data3.corr().values.flatten()
+
+    # Combine all features
+    #features = np.concatenate((basic_features, correlation_accelerometer1, correlation_accelerometer2,
+    #                           correlation_accelerometer3,
+    #                           correlation_gyroscope1, correlation_gyroscope2, correlation_gyroscope3))
+
+    return basic_features
 
 
 def evaluate_performance(y_true, y_pred):
@@ -253,7 +277,10 @@ def evaluate_performance(y_true, y_pred):
 
 def help(train, test, set):
     df_test = read_in(test)
+
     df_training = read_in(train)
+    # counts = df_training['label'].value_counts()
+    # print(counts)
     # labels = df_training['label'].unique()
     # colors = plt.cm.rainbow(np.linspace(0,1,len(labels)))
 
@@ -274,25 +301,25 @@ def help(train, test, set):
     df_training['label'] = label_encoder.fit_transform(df_training['label'])
     df_test['label'] = label_encoder.transform(df_test['label'])
 
-
     # Preprocess the data for training
     X_train, y_train = preprocessing(df_training)
-
 
     # Preprocess the test data for evaluation
     X_test, y_true = preprocessing(df_test)
 
-    dt_classifier = DecisionTreeClassifier(criterion="gini", class_weight="balanced", max_depth=8,
-                                           max_features='sqrt', min_samples_leaf=3, splitter="random",
-                                          
+    dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
+                                           max_features='sqrt', min_samples_leaf=3, splitter="best",
+                                           random_state=0
+
+
                                            )
 
     dt_classifier.fit(X_train, y_train)
 
-    #plt.figure(figsize=(18, 12),dpi=300)
-    #plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
+    # plt.figure(figsize=(18, 12),dpi=300)
+    # plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
     #         class_names=label_encoder.classes_)
-    #plt.show()
+    # plt.show()
 
     # Predictions
     y_pred = dt_classifier.predict(X_test)
