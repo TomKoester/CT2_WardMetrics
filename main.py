@@ -238,12 +238,19 @@ def extract_features(window_data):
 
 
 def evaluate_performance(y_true, y_pred):
-    accuracy = accuracy_score(y_true, y_pred)
-    recall = recall_score(y_true, y_pred, average='weighted')
-    precision = precision_score(y_true, y_pred, average='weighted', zero_division=1)
-    f1 = f1_score(y_true, y_pred, average='weighted')
 
-    return accuracy, recall, precision, f1
+    accuracy = accuracy_score(y_true, y_pred)
+    class_accuracy = {}
+    unique_classes = set(y_true)
+    for label in unique_classes:
+        indices = (y_true == label)
+        class_accuracy[label] = accuracy_score(y_true[indices], y_pred[indices])
+
+    recall = recall_score(y_true, y_pred, average=None)
+    precision = precision_score(y_true, y_pred, average=None, )
+    f1 = f1_score(y_true, y_pred, average=None)
+
+    return class_accuracy, recall, precision, f1
 
 
 def help(train, test, set):
@@ -298,10 +305,12 @@ def help(train, test, set):
     accuracy, recall, precision, f1 = evaluate_performance(y_true, y_pred)
 
     print("Traditional Metrics Set " + set + ":")
-    print(f"Accuracy: {accuracy:.2f}")
-    print(f"Recall: {recall:.2f}")
-    print(f"Precision: {precision:.2f}")
-    print(f"F1 Score: {f1:.2f}\n")
+    for i in [0, 1, 2, 3, 4]:
+        print(f"Label {i}:" )
+        print(f"  Accuracy: {accuracy[i]:.2f}")
+        print(f"  Recall: {recall[i]:.2f}")
+        print(f"  Precision: {precision[i]:.2f}")
+        print(f"  F1 Score: {f1[i]:.2f}")
     # print("\nWard Metrics Set " + set + ":")
     # evaluate_segment_event_based(y_true, y_pred)
 
