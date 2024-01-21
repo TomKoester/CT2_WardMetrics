@@ -233,36 +233,7 @@ def convert_to_events(labels):
 # TODO check which features are unimportant and test correlation as feature
 def extract_features(window_data):
     basic_features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median', 'var',
-                                                      ]).values.flatten()
-    accelerometer_cols1 = ['accelerometer_x', 'accelerometer_y']
-    accelerometer_cols2 = ['accelerometer_x', 'accelerometer_z']
-    accelerometer_cols3 = ['accelerometer_y', 'accelerometer_z']
-
-    gyroscope_cols1 = ['gyro_x', 'gyro_y', ]
-    gyroscope_cols2 = ['gyro_x', 'gyro_z', ]
-    gyroscope_cols3 = ['gyro_y', 'gyro_z', ]
-
-    #accelerometer_data1 = window_data[accelerometer_cols1]
-    #accelerometer_data2 = window_data[accelerometer_cols2]
-    #accelerometer_data3 = window_data[accelerometer_cols3]
-    #gyroscope_data1 = window_data[gyroscope_cols1]
-    #gyroscope_data2 = window_data[gyroscope_cols2]
-    #gyroscope_data3 = window_data[gyroscope_cols3]
-
-    # Calculate correlation coefficients
-    #correlation_accelerometer1 = accelerometer_data1.corr().values.flatten()
-    #correlation_accelerometer2 = accelerometer_data2.corr().values.flatten()
-    #correlation_accelerometer3 = accelerometer_data3.corr().values.flatten()
-
-    #correlation_gyroscope1 = gyroscope_data1.corr().values.flatten()
-    #correlation_gyroscope2 = gyroscope_data2.corr().values.flatten()
-    #correlation_gyroscope3 = gyroscope_data3.corr().values.flatten()
-
-    # Combine all features
-    #features = np.concatenate((basic_features, correlation_accelerometer1, correlation_accelerometer2,
-    #                           correlation_accelerometer3,
-    #                           correlation_gyroscope1, correlation_gyroscope2, correlation_gyroscope3))
-
+                                                            ]).values.flatten()
     return basic_features
 
 
@@ -309,8 +280,7 @@ def help(train, test, set):
 
     dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
                                            max_features='sqrt', min_samples_leaf=3, splitter="best",
-                                           random_state=0
-
+                                           random_state=2
 
                                            )
 
