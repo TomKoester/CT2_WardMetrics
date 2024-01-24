@@ -9,6 +9,7 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_sc
 from wardmetrics.visualisations import *
 from wardmetrics.utils import *
 import wardmetrics
+from imblearn.over_sampling import RandomOverSampler
 
 
 def read_in(ctm_file_path):
@@ -84,7 +85,7 @@ def preprocessing(df):
     # test with linear acceleration
     data_columns = data_columns.drop(['rotation_vector_x', 'rotation_vector_y', 'rotation_vector_z',
                                       'linear_accel_x', 'linear_accel_y', 'linear_accel_z',
-                                      'gravity_x', 'gravity_y', 'gravity_z', 'timestamp',
+                                       'timestamp',
                                       'orientation_x', 'orientation_y', 'orientation_z',
                                       'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
                                       'magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z',
@@ -238,7 +239,6 @@ def extract_features(window_data):
 
 
 def evaluate_performance(y_true, y_pred):
-
     accuracy = accuracy_score(y_true, y_pred)
     class_accuracy = {}
     unique_classes = set(y_true)
@@ -257,6 +257,7 @@ def help(train, test, set):
     df_test = read_in(test)
 
     df_training = read_in(train)
+
     # counts = df_training['label'].value_counts()
     # print(counts)
     # labels = df_training['label'].unique()
@@ -275,12 +276,17 @@ def help(train, test, set):
 
     # Preprocess the data for training
     # Label Encoding like encodes 'walking' as '0' and 'standing' as '1' and so on...
+
+
     label_encoder = LabelEncoder()
     df_training['label'] = label_encoder.fit_transform(df_training['label'])
     df_test['label'] = label_encoder.transform(df_test['label'])
 
     # Preprocess the data for training
     X_train, y_train = preprocessing(df_training)
+    oversampler = RandomOverSampler(sampling_strategy='auto', random_state=42)
+    X_train, y_train = oversampler.fit_resample(X_train, y_train)
+
 
     # Preprocess the test data for evaluation
     X_test, y_true = preprocessing(df_test)
@@ -306,7 +312,7 @@ def help(train, test, set):
 
     print("Traditional Metrics Set " + set + ":")
     for i in [0, 1, 2, 3, 4]:
-        print(f"Label {i}:" )
+        print(f"Label {i}:")
         print(f"  Accuracy: {accuracy[i]:.2f}")
         print(f"  Recall: {recall[i]:.2f}")
         print(f"  Precision: {precision[i]:.2f}")
