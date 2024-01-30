@@ -10,6 +10,7 @@ from wardmetrics.visualisations import *
 from wardmetrics.utils import *
 import wardmetrics
 from imblearn.over_sampling import RandomOverSampler
+from scipy.fft import fft
 
 
 def read_in(ctm_file_path):
@@ -233,7 +234,33 @@ def convert_to_events(labels):
 def extract_features(window_data):
     basic_features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median', 'var',
                                                             ]).values.flatten()
-    return basic_features
+    frequency_features = []
+
+    for sensor_type in ['accelerometer', 'gyro']:
+        for axis in ['x', 'y', 'z']:
+            # Assuming 'sensor_type_' prefix for accelerometer and gyroscope data
+            signal = window_data[f'{sensor_type}_{axis}'].values
+
+            # Apply Fourier Transform
+            fft_result = fft(signal)
+
+            # Compute energy
+            energy = np.sum(np.abs(fft_result) ** 2)
+
+            # Compute entropy
+            normalized_spectrum = np.abs(fft_result) / np.sum(np.abs(fft_result))
+            entropy = -np.sum(
+                normalized_spectrum * np.log2(normalized_spectrum + 1e-10))  # Adding small constant to avoid log(0)
+
+            # Compute DC mean
+            dc_mean = np.abs(fft_result[0])
+
+            frequency_features.extend([energy, entropy, dc_mean])
+
+    all_features = np.concatenate((basic_features, frequency_features))
+
+    return all_features
+
 
 
 def evaluate_performance(y_true, y_pred):
@@ -279,6 +306,7 @@ def help(train, test, set):
     label_encoder = LabelEncoder()
     df_training['label'] = label_encoder.fit_transform(df_training['label'])
     df_test['label'] = label_encoder.transform(df_test['label'])
+    print(list(label_encoder.classes_))
 
     # Preprocess the data for training
     X_train, y_train = preprocessing(df_training)
@@ -291,7 +319,7 @@ def help(train, test, set):
 
     dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
                                            max_features='sqrt', min_samples_leaf=3, splitter="best",
-                                           random_state=2
+                                           random_state=123
 
                                            )
 
@@ -310,13 +338,13 @@ def help(train, test, set):
 
     print("Traditional Metrics Set " + set + ":")
     for i in [0, 1, 2, 3, 4]:
-        print(f"Label {i}:")
+        print(f"Label {i} {label_encoder.classes_[i]}:")
         print(f"  Accuracy: {accuracy[i]:.2f}")
         print(f"  Recall: {recall[i]:.2f}")
         print(f"  Precision: {precision[i]:.2f}")
         print(f"  F1 Score: {f1[i]:.2f}")
     print("\nWard Metrics Set " + set + ":")
-    evaluate_segment_event_based(y_true, y_pred)
+    # evaluate_segment_event_based(y_true, y_pred)
 
 
 def main():
