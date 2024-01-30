@@ -123,8 +123,6 @@ def preprocessing(df):
     feature_windows = np.array(windows)
     window_labels = np.array(labels)
 
-    # feature_windows = np.delete(feature_windows, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,  ], axis=1)
-
     return feature_windows, window_labels
 
 
@@ -258,8 +256,8 @@ def help(train, test, set):
 
     df_training = read_in(train)
 
-    # counts = df_training['label'].value_counts()
-    # print(counts)
+    #counts = df_training['label'].value_counts()
+    #print(counts)
     # labels = df_training['label'].unique()
     # colors = plt.cm.rainbow(np.linspace(0,1,len(labels)))
 
@@ -317,8 +315,8 @@ def help(train, test, set):
         print(f"  Recall: {recall[i]:.2f}")
         print(f"  Precision: {precision[i]:.2f}")
         print(f"  F1 Score: {f1[i]:.2f}")
-    # print("\nWard Metrics Set " + set + ":")
-    # evaluate_segment_event_based(y_true, y_pred)
+    print("\nWard Metrics Set " + set + ":")
+    evaluate_segment_event_based(y_true, y_pred)
 
 
 def main():
