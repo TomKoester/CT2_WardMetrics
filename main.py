@@ -51,8 +51,8 @@ def read_in(ctm_file_path):
         magnetic_field_y = float(columns[23])
         magnetic_field_z = float(columns[24])
 
-        # If nessasary, we can refactor this (column[0] instead of timestamp,...) but
-        # I think at the moment this is better for visiblity
+        # If necessary, we can refactor this (column[0] instead of timestamp,...) but
+        # I think at the moment this is better for visibility
         data.append([timestamp, label, accelerometer_x, accelerometer_y, accelerometer_z, gyro_x, gyro_y, gyro_z,
                      linear_accel_x, linear_accel_y, linear_accel_z, gravity_x, gravity_y, gravity_z,
                      orientation_x, orientation_y, orientation_z, rotation_vector_x, rotation_vector_y,
@@ -183,7 +183,7 @@ def calculate_event_score(gt_event, pd_event, end):
     print(gt_events_without_label)
     print(pd_events_without_label)
     # without zero range
-    print("\n wiothout zero range")
+    print("\n without zero range")
     print(gt_events_without_zero_range)
     print(pd_events_without_zero_range)
     if len(gt_events_without_zero_range) == 0:
@@ -342,13 +342,15 @@ def pre_processing(test, train):
     X_train, y_train = oversampler.fit_resample(X_train, y_train)
     return X_train, df_test, label_encoder, y_train
 
+
 def complete_evaluation(y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5):
     y_true_complete = np.concatenate((y_true1, y_true2, y_true3, y_true4, y_true5))
     y_pred_complete = np.concatenate((y_pred1, y_pred2, y_pred3, y_pred4, y_pred5))
     conf_matrix = confusion_matrix(y_true_complete, y_pred_complete)
     # Plot Confusion Matrix
     plt.figure(figsize=(8, 6))
-    sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=['sit_down', 'sitting', 'stand_up', 'standing', 'walking'],
+    sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues",
+                xticklabels=['sit_down', 'sitting', 'stand_up', 'standing', 'walking'],
                 yticklabels=['sit_down', 'sitting', 'stand_up', 'standing', 'walking'])
     plt.title("Confusion Matrix")
     plt.xlabel("Predicted Labels")
@@ -384,9 +386,6 @@ def main():
     y_true5, y_pred5 = one_set_dt(test=ctm_file_path_test5, train=ctm_file_path_training5, set="5")
 
     complete_evaluation(y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5)
-
-
-
 
 
 if __name__ == "__main__":
