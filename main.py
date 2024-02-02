@@ -2,15 +2,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold, GridSearchCV
 from wardmetrics.core_methods import eval_events, eval_segments
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, make_scorer, confusion_matrix
 from wardmetrics.visualisations import *
 from wardmetrics.utils import *
 import wardmetrics
 from imblearn.over_sampling import RandomOverSampler
 from scipy.fft import fft
+import seaborn as sns
 
 
 def read_in(ctm_file_path):
@@ -51,7 +52,7 @@ def read_in(ctm_file_path):
         magnetic_field_z = float(columns[24])
 
         # If nessasary, we can refactor this (column[0] instead of timestamp,...) but
-        # i think at the moment this is better for visiblity
+        # I think at the moment this is better for visiblity
         data.append([timestamp, label, accelerometer_x, accelerometer_y, accelerometer_z, gyro_x, gyro_y, gyro_z,
                      linear_accel_x, linear_accel_y, linear_accel_z, gravity_x, gravity_y, gravity_z,
                      orientation_x, orientation_y, orientation_z, rotation_vector_x, rotation_vector_y,
@@ -89,20 +90,18 @@ def preprocessing(df):
                                        'timestamp',
                                       'orientation_x', 'orientation_y', 'orientation_z',
                                       'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
-                                      'magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z',
+
 
                                       ], axis=1)
 
-    # Initialize the scaler
-    scaler = StandardScaler()
 
     # Fit and transform the data columns
-    data_columns_scaled = scaler.fit_transform(data_columns)
+    # data_columns_scaled = scaler.fit_transform(data_columns)
 
     # Create a new DataFrame with the scaled features and the original label column
-    df_scaled = pd.DataFrame(data_columns_scaled, columns=data_columns.columns)
-    df_scaled['label'] = label_column
-    df = df_scaled
+
+    data_columns['label'] = label_column
+    df = data_columns
 
     # Windowing
     window_size = 50
@@ -122,6 +121,9 @@ def preprocessing(df):
         labels.append(window_label)
 
     feature_windows = np.array(windows)
+    # Initialize the scaler
+    scaler = StandardScaler()
+    feature_windows = scaler.fit_transform(feature_windows)
     window_labels = np.array(labels)
 
     return feature_windows, window_labels
@@ -232,11 +234,11 @@ def convert_to_events(labels):
 
 # TODO check which features are unimportant and test correlation as feature
 def extract_features(window_data):
-    basic_features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median', 'var',
+    basic_features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median',
                                                             ]).values.flatten()
     frequency_features = []
 
-    for sensor_type in ['accelerometer', 'gyro']:
+    for sensor_type in ['accelerometer', 'gyro', 'magnetic_field']:
         for axis in ['x', 'y', 'z']:
             # Assuming 'sensor_type_' prefix for accelerometer and gyroscope data
             signal = window_data[f'{sensor_type}_{axis}'].values
@@ -306,30 +308,29 @@ def help(train, test, set):
     label_encoder = LabelEncoder()
     df_training['label'] = label_encoder.fit_transform(df_training['label'])
     df_test['label'] = label_encoder.transform(df_test['label'])
-    print(list(label_encoder.classes_))
+
 
     # Preprocess the data for training
     X_train, y_train = preprocessing(df_training)
     oversampler = RandomOverSampler(sampling_strategy='auto', random_state=42)
     X_train, y_train = oversampler.fit_resample(X_train, y_train)
 
-
-    # Preprocess the test data for evaluation
-    X_test, y_true = preprocessing(df_test)
-
     dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
                                            max_features='sqrt', min_samples_leaf=3, splitter="best",
-                                           random_state=123
+                                           random_state=45
 
                                            )
 
     dt_classifier.fit(X_train, y_train)
 
+
     # plt.figure(figsize=(18, 12),dpi=300)
     # plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
-    #         class_names=label_encoder.classes_)
+    #          class_names=label_encoder.classes_)
     # plt.show()
 
+    # Preprocess the test data for evaluation
+    X_test, y_true = preprocessing(df_test)
     # Predictions
     y_pred = dt_classifier.predict(X_test)
 
@@ -343,35 +344,61 @@ def help(train, test, set):
         print(f"  Recall: {recall[i]:.2f}")
         print(f"  Precision: {precision[i]:.2f}")
         print(f"  F1 Score: {f1[i]:.2f}")
+
+    conf_matrix = confusion_matrix(y_true, y_pred)
+
+    # Plot Confusion Matrix
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=label_encoder.classes_,
+               yticklabels=label_encoder.classes_)
+    plt.title("Confusion Matrix")
+    plt.xlabel("Predicted Labels")
+    plt.ylabel("True Labels")
+    #plt.show()
     print("\nWard Metrics Set " + set + ":")
-    # evaluate_segment_event_based(y_true, y_pred)
+    evaluate_segment_event_based(y_true, y_pred)
+    return y_true, y_pred
 
 
 def main():
     ctm_file_path_training1 = r"DATASET\DATASET\P-1_training.ctm"
     ctm_file_path_test1 = r"DATASET\DATASET\P-1_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    help(test=ctm_file_path_test1, train=ctm_file_path_training1, set="1")
+    y_true1, y_pred1 = help(test=ctm_file_path_test1, train=ctm_file_path_training1, set="1")
 
     ctm_file_path_training2 = r"DATASET\DATASET\P-2_training.ctm"
     ctm_file_path_test2 = r"DATASET\DATASET\P-2_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    help(test=ctm_file_path_test2, train=ctm_file_path_training2, set="2")
+
+    y_true2, y_pred2 =help(test=ctm_file_path_test2, train=ctm_file_path_training2, set="2")
 
     ctm_file_path_training3 = r"DATASET\DATASET\P-3_training.ctm"
     ctm_file_path_test3 = r"DATASET\DATASET\P-3_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    help(test=ctm_file_path_test3, train=ctm_file_path_training3, set="3")
+    y_true3, y_pred3=help(test=ctm_file_path_test3, train=ctm_file_path_training3, set="3")
 
     ctm_file_path_training4 = r"DATASET\DATASET\P-4_training.ctm"
     ctm_file_path_test4 = r"DATASET\DATASET\P-4_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    help(test=ctm_file_path_test4, train=ctm_file_path_training4, set="4")
+    y_true4, y_pred4=help(test=ctm_file_path_test4, train=ctm_file_path_training4, set="4")
 
     ctm_file_path_training5 = r"DATASET\DATASET\P-5_training.ctm"
     ctm_file_path_test5 = r"DATASET\DATASET\P-5_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    help(test=ctm_file_path_test5, train=ctm_file_path_training5, set="5")
+    y_true5, y_pred5 =help(test=ctm_file_path_test5, train=ctm_file_path_training5, set="5")
+
+    y_true_complete =np.concatenate((y_true1, y_true2, y_true3, y_true4, y_true5))
+    y_pred_complete = np.concatenate(( y_pred1, y_pred2, y_pred3, y_pred4, y_pred5))
+
+    # conf_matrix = confusion_matrix(y_true_complete, y_pred_complete)
+    # Plot Confusion Matrix
+    plt.figure(figsize=(8, 6))
+    # sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=['sit_down', 'sitting', 'stand_up', 'standing', 'walking'],
+    #             yticklabels=['sit_down', 'sitting', 'stand_up', 'standing', 'walking'])
+    # plt.title("Confusion Matrix")
+    # plt.xlabel("Predicted Labels")
+    # plt.ylabel("True Labels")
+    # plt.show()
 
 
 if __name__ == "__main__":
