@@ -287,13 +287,13 @@ def one_set_dt(train, test, set):
     return y_true, y_pred
 
 
-def evaluate_model(df_test, dt_classifier, label_encoder, set):
+def evaluate_model(df_test, dt_classifier, label_encoder, set_nr):
     X_test, y_true = preprocessing(df_test)
     # Predictions
     y_pred = dt_classifier.predict(X_test)
     # Evaluate the model
     accuracy, recall, precision, f1 = evaluate_performance(y_true, y_pred)
-    print("Traditional Metrics Set " + set + ":")
+    print("Traditional Metrics Set " + set_nr + ":")
     for i in [0, 1, 2, 3, 4]:
         print(f"Label {i} {label_encoder.classes_[i]}:")
         print(f"  Accuracy: {accuracy[i]:.2f}")
@@ -309,22 +309,35 @@ def evaluate_model(df_test, dt_classifier, label_encoder, set):
     plt.xlabel("Predicted Labels")
     plt.ylabel("True Labels")
     # plt.show()
-    print("\nWard Metrics Set " + set + ":")
+    print("\nWard Metrics Set " + set_nr + ":")
     evaluate_segment_event_based(y_true, y_pred)
     return y_pred, y_true
 
 
 def training(X_train, y_train):
-    dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
-                                           max_features='sqrt', min_samples_leaf=3, splitter="best",
-                                           random_state=45
-
+    dt_classifier = DecisionTreeClassifier(splitter="best", random_state=50
                                            )
+    param_grid = {
+        'criterion': ['gini', 'entropy'],
+        'max_depth': [None, 4, 8, 12, 16],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4]
+    }
+
+    # Create GridSearchCV object with cross-validation
+    grid_search = GridSearchCV(estimator=dt_classifier, param_grid=param_grid, scoring='accuracy', cv=5)
+    grid_search.fit(X_train, y_train)
+
+    # Get the best parameters and the best model
+    best_params = grid_search.best_params_
+    dt_classifier = grid_search.best_estimator_
+
     dt_classifier.fit(X_train, y_train)
     # plt.figure(figsize=(18, 12),dpi=300)
     # plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
     #          class_names=label_encoder.classes_)
     # plt.show()
+    print("Best Hyperparameters:", best_params)
     return dt_classifier
 
 
