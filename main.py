@@ -103,7 +103,7 @@ def preprocessing(df):
 
     # Windowing
     window_size = 50
-    overlap = 15
+    overlap = 30
 
     windows = []
     labels = []
@@ -277,6 +277,24 @@ def evaluate_performance(y_true, y_pred):
     return class_accuracy, recall, precision, f1
 
 
+def five_set_dt(train1, train2, train3, train4, train5, test1, test2, test3, test4, test5):
+    X_train1, df_test1, label_encoder1, y_train1 = pre_processing(test1, train1)
+    X_train2, df_test2, label_encoder2, y_train2 = pre_processing(test2, train2)
+    X_train3, df_test3, label_encoder3, y_train3 = pre_processing(test3, train3)
+    X_train4, df_test4, label_encoder4, y_train4 = pre_processing(test4, train4)
+    X_train5, df_test5, label_encoder5, y_train5 = pre_processing(test5, train5)
+    X_train_complete = np.concatenate((X_train1, X_train2, X_train3, X_train4, X_train5), axis=0)
+    y_train_complete = np.concatenate((y_train1, y_train2, y_train3, y_train4, y_train5), axis=0)
+    dt_classifier = training(X_train_complete, y_train_complete)
+    y_pred1, y_true1 = evaluate_model(df_test1, dt_classifier, label_encoder1, '1')
+    y_pred2, y_true2 = evaluate_model(df_test2, dt_classifier, label_encoder2, '2')
+    y_pred3, y_true3 = evaluate_model(df_test3, dt_classifier, label_encoder3, '3')
+    y_pred4, y_true4 = evaluate_model(df_test4, dt_classifier, label_encoder4, '4')
+    y_pred5, y_true5 = evaluate_model(df_test5, dt_classifier, label_encoder5, '5')
+
+    return y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5
+
+
 def one_set_dt(train, test, set):
     X_train, df_test, label_encoder, y_train = pre_processing(test, train)
 
@@ -315,8 +333,8 @@ def evaluate_model(df_test, dt_classifier, label_encoder, set):
 
 
 def training(X_train, y_train):
-    dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
-                                           max_features='sqrt', min_samples_leaf=3, splitter="best",
+    dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=3,
+                                           splitter="best",
                                            random_state=45
 
                                            )
@@ -362,28 +380,32 @@ def main():
     ctm_file_path_training1 = r"DATASET\DATASET\P-1_training.ctm"
     ctm_file_path_test1 = r"DATASET\DATASET\P-1_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    y_true1, y_pred1 = one_set_dt(test=ctm_file_path_test1, train=ctm_file_path_training1, set="1")
+    # y_true1, y_pred1 = one_set_dt(test=ctm_file_path_test1, train=ctm_file_path_training1, set="1")
 
     ctm_file_path_training2 = r"DATASET\DATASET\P-2_training.ctm"
     ctm_file_path_test2 = r"DATASET\DATASET\P-2_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
 
-    y_true2, y_pred2 = one_set_dt(test=ctm_file_path_test2, train=ctm_file_path_training2, set="2")
+    # y_true2, y_pred2 = one_set_dt(test=ctm_file_path_test2, train=ctm_file_path_training2, set="2")
 
     ctm_file_path_training3 = r"DATASET\DATASET\P-3_training.ctm"
     ctm_file_path_test3 = r"DATASET\DATASET\P-3_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    y_true3, y_pred3 = one_set_dt(test=ctm_file_path_test3, train=ctm_file_path_training3, set="3")
+    # y_true3, y_pred3 = one_set_dt(test=ctm_file_path_test3, train=ctm_file_path_training3, set="3")
 
     ctm_file_path_training4 = r"DATASET\DATASET\P-4_training.ctm"
     ctm_file_path_test4 = r"DATASET\DATASET\P-4_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    y_true4, y_pred4 = one_set_dt(test=ctm_file_path_test4, train=ctm_file_path_training4, set="4")
+    # y_true4, y_pred4 = one_set_dt(test=ctm_file_path_test4, train=ctm_file_path_training4, set="4")
 
     ctm_file_path_training5 = r"DATASET\DATASET\P-5_training.ctm"
     ctm_file_path_test5 = r"DATASET\DATASET\P-5_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    y_true5, y_pred5 = one_set_dt(test=ctm_file_path_test5, train=ctm_file_path_training5, set="5")
+    # y_true5, y_pred5 = one_set_dt(test=ctm_file_path_test5, train=ctm_file_path_training5, set="5")
+    y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5 = (
+        five_set_dt(ctm_file_path_training1, ctm_file_path_training2, ctm_file_path_training3, ctm_file_path_training4,
+                    ctm_file_path_training5, ctm_file_path_test1, ctm_file_path_test2, ctm_file_path_test3,
+                    ctm_file_path_test4, ctm_file_path_test5))
 
     complete_evaluation(y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5)
 
