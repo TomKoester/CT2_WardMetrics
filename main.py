@@ -103,8 +103,8 @@ def preprocessing(df):
     df = data_columns
 
     # Windowing
-    window_size = 50
-    overlap = 30
+    window_size = 200
+    overlap = 120
 
     windows = []
     labels = []
@@ -357,8 +357,8 @@ def pre_processing(test, train):
     df_test['label'] = label_encoder.transform(df_test['label'])
     # Preprocess the data for training
     X_train, y_train = preprocessing(df_training)
-    #oversampler = RandomOverSampler(sampling_strategy='auto', random_state=42)
-    #X_train, y_train = oversampler.fit_resample(X_train, y_train)
+    # oversampler = RandomOverSampler(sampling_strategy='auto', random_state=42)
+    # X_train, y_train = oversampler.fit_resample(X_train, y_train)
     return X_train, df_test, label_encoder, y_train
 
 
