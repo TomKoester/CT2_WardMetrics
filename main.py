@@ -90,6 +90,7 @@ def preprocessing(df):
                                       'timestamp',
                                       'orientation_x', 'orientation_y', 'orientation_z',
                                       'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
+                                      'magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z'
 
                                       ], axis=1)
 
@@ -232,11 +233,11 @@ def convert_to_events(labels):
 
 # TODO check which features are unimportant and test correlation as feature
 def extract_features(window_data):
-    basic_features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median',
+    basic_features = window_data.drop('label', axis=1).agg(['mean', 'std',  'max', 'min', 'median',
                                                             ]).values.flatten()
     frequency_features = []
-
-    for sensor_type in ['accelerometer', 'gyro', 'magnetic_field']:
+    '''
+    for sensor_type in ['accelerometer', 'gyro']:
         for axis in ['x', 'y', 'z']:
             # Assuming 'sensor_type_' prefix for accelerometer and gyroscope data
             signal = window_data[f'{sensor_type}_{axis}'].values
@@ -258,8 +259,8 @@ def extract_features(window_data):
             frequency_features.extend([energy, entropy, dc_mean])
 
     all_features = np.concatenate((basic_features, frequency_features))
-
-    return all_features
+'''
+    return basic_features
 
 
 def evaluate_performance(y_true, y_pred):
@@ -356,14 +357,25 @@ def pre_processing(test, train):
     df_test['label'] = label_encoder.transform(df_test['label'])
     # Preprocess the data for training
     X_train, y_train = preprocessing(df_training)
-    oversampler = RandomOverSampler(sampling_strategy='auto', random_state=42)
-    X_train, y_train = oversampler.fit_resample(X_train, y_train)
+    #oversampler = RandomOverSampler(sampling_strategy='auto', random_state=42)
+    #X_train, y_train = oversampler.fit_resample(X_train, y_train)
     return X_train, df_test, label_encoder, y_train
 
 
 def complete_evaluation(y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5):
     y_true_complete = np.concatenate((y_true1, y_true2, y_true3, y_true4, y_true5))
     y_pred_complete = np.concatenate((y_pred1, y_pred2, y_pred3, y_pred4, y_pred5))
+
+    accuracy, recall, precision, f1 = evaluate_performance(y_true_complete, y_pred_complete)
+    print("Traditional Metrics overall:")
+    for i in [0, 1, 2, 3, 4]:
+        print(f"Label {i} :")
+        print(f"  Accuracy: {accuracy[i]:.2f}")
+        print(f"  Recall: {recall[i]:.2f}")
+        print(f"  Precision: {precision[i]:.2f}")
+        print(f"  F1 Score: {f1[i]:.2f}")
+
+
     conf_matrix = confusion_matrix(y_true_complete, y_pred_complete)
     # Plot Confusion Matrix
     plt.figure(figsize=(8, 6))
