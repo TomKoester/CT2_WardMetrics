@@ -2,10 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold, GridSearchCV
+
 from wardmetrics.core_methods import eval_events, eval_segments
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, make_scorer, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score,  confusion_matrix
 from wardmetrics.visualisations import *
 from wardmetrics.utils import *
 import wardmetrics
@@ -90,11 +90,12 @@ def preprocessing(df):
                                       'timestamp',
                                       'orientation_x', 'orientation_y', 'orientation_z',
                                       'rotation_vector_scalar', 'rotation_vector_heading_accuracy',
+                                      'magnetic_field_x', 'magnetic_field_y', 'magnetic_field_z'
 
                                       ], axis=1)
 
-    # Fit and transform the data columns
-    # data_columns_scaled = scaler.fit_transform(data_columns)
+
+
 
     # Create a new DataFrame with the scaled features and the original label column
 
@@ -102,8 +103,8 @@ def preprocessing(df):
     df = data_columns
 
     # Windowing
-    window_size = 50
-    overlap = 15
+    window_size = 150
+    overlap = 75
 
     windows = []
     labels = []
@@ -119,9 +120,7 @@ def preprocessing(df):
         labels.append(window_label)
 
     feature_windows = np.array(windows)
-    # Initialize the scaler
-    scaler = StandardScaler()
-    feature_windows = scaler.fit_transform(feature_windows)
+
     window_labels = np.array(labels)
 
     return feature_windows, window_labels
@@ -232,11 +231,11 @@ def convert_to_events(labels):
 
 # TODO check which features are unimportant and test correlation as feature
 def extract_features(window_data):
-    basic_features = window_data.drop('label', axis=1).agg(['mean', 'std', 'skew', 'max', 'min', 'median',
+    basic_features = window_data.drop('label', axis=1).agg(['mean',  'std',  'max', 'min', 'median',
                                                             ]).values.flatten()
     frequency_features = []
 
-    for sensor_type in ['accelerometer', 'gyro', 'magnetic_field']:
+    for sensor_type in ['accelerometer', 'gyro']:
         for axis in ['x', 'y', 'z']:
             # Assuming 'sensor_type_' prefix for accelerometer and gyroscope data
             signal = window_data[f'{sensor_type}_{axis}'].values
@@ -247,19 +246,19 @@ def extract_features(window_data):
             # Compute energy
             energy = np.sum(np.abs(fft_result) ** 2)
 
-            # Compute entropy
-            normalized_spectrum = np.abs(fft_result) / np.sum(np.abs(fft_result))
-            entropy = -np.sum(
-                normalized_spectrum * np.log2(normalized_spectrum + 1e-10))  # Adding small constant to avoid log(0)
-
-            # Compute DC mean
-            dc_mean = np.abs(fft_result[0])
-
-            frequency_features.extend([energy, entropy, dc_mean])
+            frequency_features.extend([energy])
 
     all_features = np.concatenate((basic_features, frequency_features))
 
     return all_features
+
+
+def evaluate_avg_performance(y_true, y_pred):
+    accuracy = accuracy_score(y_true, y_pred)
+    recall = recall = recall_score(y_true, y_pred, average='weighted')
+    precision = precision_score(y_true, y_pred, average='weighted', )
+    f1 = f1_score(y_true, y_pred, average='weighted')
+    return accuracy, recall, precision, f1
 
 
 def evaluate_performance(y_true, y_pred):
@@ -275,6 +274,24 @@ def evaluate_performance(y_true, y_pred):
     f1 = f1_score(y_true, y_pred, average=None)
 
     return class_accuracy, recall, precision, f1
+
+
+def five_set_dt(train1, train2, train3, train4, train5, test1, test2, test3, test4, test5):
+    X_train1, df_test1, label_encoder1, y_train1 = pre_processing(test1, train1)
+    X_train2, df_test2, label_encoder2, y_train2 = pre_processing(test2, train2)
+    X_train3, df_test3, label_encoder3, y_train3 = pre_processing(test3, train3)
+    X_train4, df_test4, label_encoder4, y_train4 = pre_processing(test4, train4)
+    X_train5, df_test5, label_encoder5, y_train5 = pre_processing(test5, train5)
+    X_train_complete = np.concatenate((X_train1, X_train2, X_train3, X_train4, X_train5), axis=0)
+    y_train_complete = np.concatenate((y_train1, y_train2, y_train3, y_train4, y_train5), axis=0)
+    dt_classifier = training(X_train_complete, y_train_complete)
+    y_pred1, y_true1 = evaluate_model(df_test1, dt_classifier, label_encoder1, '1')
+    y_pred2, y_true2 = evaluate_model(df_test2, dt_classifier, label_encoder2, '2')
+    y_pred3, y_true3 = evaluate_model(df_test3, dt_classifier, label_encoder3, '3')
+    y_pred4, y_true4 = evaluate_model(df_test4, dt_classifier, label_encoder4, '4')
+    y_pred5, y_true5 = evaluate_model(df_test5, dt_classifier, label_encoder5, '5')
+
+    return y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5
 
 
 def one_set_dt(train, test, set):
@@ -315,9 +332,9 @@ def evaluate_model(df_test, dt_classifier, label_encoder, set):
 
 
 def training(X_train, y_train):
-    dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=8,
-                                           max_features='sqrt', min_samples_leaf=3, splitter="best",
-                                           random_state=45
+    dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=3,
+                                           splitter="best",
+                                           random_state=128
 
                                            )
     dt_classifier.fit(X_train, y_train)
@@ -346,6 +363,24 @@ def pre_processing(test, train):
 def complete_evaluation(y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5):
     y_true_complete = np.concatenate((y_true1, y_true2, y_true3, y_true4, y_true5))
     y_pred_complete = np.concatenate((y_pred1, y_pred2, y_pred3, y_pred4, y_pred5))
+
+    accuracy, recall, precision, f1 = evaluate_performance(y_true_complete, y_pred_complete)
+    avg_acc, avg_recall, avg_precision, avg_f1 = evaluate_avg_performance(y_true_complete, y_pred_complete)
+    print("Traditional Metrics overall:")
+    for i in [0, 1, 2, 3, 4]:
+        print(f"Label {i} :")
+        print(f"  Accuracy: {accuracy[i]:.2f}")
+        print(f"  Recall: {recall[i]:.2f}")
+        print(f"  Precision: {precision[i]:.2f}")
+        print(f"  F1 Score: {f1[i]:.2f}")
+
+    print("Weighted Average:")
+    print(f"  Accuracy: {avg_acc:.2f}")
+    print(f"  Recall: {avg_recall:.2f}")
+    print(f"  Precision: {avg_precision:.2f}")
+    print(f"  F1 Score: {avg_f1:.2f}")
+
+
     conf_matrix = confusion_matrix(y_true_complete, y_pred_complete)
     # Plot Confusion Matrix
     plt.figure(figsize=(8, 6))
@@ -362,28 +397,32 @@ def main():
     ctm_file_path_training1 = r"DATASET\DATASET\P-1_training.ctm"
     ctm_file_path_test1 = r"DATASET\DATASET\P-1_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    y_true1, y_pred1 = one_set_dt(test=ctm_file_path_test1, train=ctm_file_path_training1, set="1")
+    # y_true1, y_pred1 = one_set_dt(test=ctm_file_path_test1, train=ctm_file_path_training1, set="1")
 
     ctm_file_path_training2 = r"DATASET\DATASET\P-2_training.ctm"
     ctm_file_path_test2 = r"DATASET\DATASET\P-2_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
 
-    y_true2, y_pred2 = one_set_dt(test=ctm_file_path_test2, train=ctm_file_path_training2, set="2")
+    # y_true2, y_pred2 = one_set_dt(test=ctm_file_path_test2, train=ctm_file_path_training2, set="2")
 
     ctm_file_path_training3 = r"DATASET\DATASET\P-3_training.ctm"
     ctm_file_path_test3 = r"DATASET\DATASET\P-3_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    y_true3, y_pred3 = one_set_dt(test=ctm_file_path_test3, train=ctm_file_path_training3, set="3")
+    # y_true3, y_pred3 = one_set_dt(test=ctm_file_path_test3, train=ctm_file_path_training3, set="3")
 
     ctm_file_path_training4 = r"DATASET\DATASET\P-4_training.ctm"
     ctm_file_path_test4 = r"DATASET\DATASET\P-4_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    y_true4, y_pred4 = one_set_dt(test=ctm_file_path_test4, train=ctm_file_path_training4, set="4")
+    # y_true4, y_pred4 = one_set_dt(test=ctm_file_path_test4, train=ctm_file_path_training4, set="4")
 
     ctm_file_path_training5 = r"DATASET\DATASET\P-5_training.ctm"
     ctm_file_path_test5 = r"DATASET\DATASET\P-5_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    y_true5, y_pred5 = one_set_dt(test=ctm_file_path_test5, train=ctm_file_path_training5, set="5")
+    # y_true5, y_pred5 = one_set_dt(test=ctm_file_path_test5, train=ctm_file_path_training5, set="5")
+    y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5 = (
+        five_set_dt(ctm_file_path_training1, ctm_file_path_training2, ctm_file_path_training3, ctm_file_path_training4,
+                    ctm_file_path_training5, ctm_file_path_test1, ctm_file_path_test2, ctm_file_path_test3,
+                    ctm_file_path_test4, ctm_file_path_test5))
 
     complete_evaluation(y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5)
 
