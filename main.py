@@ -2,10 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier, plot_tree
-from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold, GridSearchCV
+
 from wardmetrics.core_methods import eval_events, eval_segments
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler, StandardScaler
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, make_scorer, confusion_matrix
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score,  confusion_matrix
 from wardmetrics.visualisations import *
 from wardmetrics.utils import *
 import wardmetrics
@@ -94,8 +94,8 @@ def preprocessing(df):
 
                                       ], axis=1)
 
-    # Fit and transform the data columns
-    # data_columns_scaled = scaler.fit_transform(data_columns)
+
+
 
     # Create a new DataFrame with the scaled features and the original label column
 
@@ -103,8 +103,8 @@ def preprocessing(df):
     df = data_columns
 
     # Windowing
-    window_size = 200
-    overlap = 120
+    window_size = 150
+    overlap = 75
 
     windows = []
     labels = []
@@ -120,9 +120,7 @@ def preprocessing(df):
         labels.append(window_label)
 
     feature_windows = np.array(windows)
-    # Initialize the scaler
-    scaler = StandardScaler()
-    feature_windows = scaler.fit_transform(feature_windows)
+
     window_labels = np.array(labels)
 
     return feature_windows, window_labels
@@ -233,10 +231,10 @@ def convert_to_events(labels):
 
 # TODO check which features are unimportant and test correlation as feature
 def extract_features(window_data):
-    basic_features = window_data.drop('label', axis=1).agg(['mean', 'std',  'max', 'min', 'median',
+    basic_features = window_data.drop('label', axis=1).agg(['mean',  'std',  'max', 'min', 'median',
                                                             ]).values.flatten()
     frequency_features = []
-    '''
+
     for sensor_type in ['accelerometer', 'gyro']:
         for axis in ['x', 'y', 'z']:
             # Assuming 'sensor_type_' prefix for accelerometer and gyroscope data
@@ -248,19 +246,19 @@ def extract_features(window_data):
             # Compute energy
             energy = np.sum(np.abs(fft_result) ** 2)
 
-            # Compute entropy
-            normalized_spectrum = np.abs(fft_result) / np.sum(np.abs(fft_result))
-            entropy = -np.sum(
-                normalized_spectrum * np.log2(normalized_spectrum + 1e-10))  # Adding small constant to avoid log(0)
-
-            # Compute DC mean
-            dc_mean = np.abs(fft_result[0])
-
-            frequency_features.extend([energy, entropy, dc_mean])
+            frequency_features.extend([energy])
 
     all_features = np.concatenate((basic_features, frequency_features))
-'''
-    return basic_features
+
+    return all_features
+
+
+def evaluate_avg_performance(y_true, y_pred):
+    accuracy = accuracy_score(y_true, y_pred)
+    recall = recall = recall_score(y_true, y_pred, average='weighted')
+    precision = precision_score(y_true, y_pred, average='weighted', )
+    f1 = f1_score(y_true, y_pred, average='weighted')
+    return accuracy, recall, precision, f1
 
 
 def evaluate_performance(y_true, y_pred):
@@ -336,7 +334,7 @@ def evaluate_model(df_test, dt_classifier, label_encoder, set):
 def training(X_train, y_train):
     dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=3,
                                            splitter="best",
-                                           random_state=45
+                                           random_state=128
 
                                            )
     dt_classifier.fit(X_train, y_train)
@@ -357,8 +355,8 @@ def pre_processing(test, train):
     df_test['label'] = label_encoder.transform(df_test['label'])
     # Preprocess the data for training
     X_train, y_train = preprocessing(df_training)
-    # oversampler = RandomOverSampler(sampling_strategy='auto', random_state=42)
-    # X_train, y_train = oversampler.fit_resample(X_train, y_train)
+    oversampler = RandomOverSampler(sampling_strategy='auto', random_state=42)
+    X_train, y_train = oversampler.fit_resample(X_train, y_train)
     return X_train, df_test, label_encoder, y_train
 
 
@@ -367,6 +365,7 @@ def complete_evaluation(y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_
     y_pred_complete = np.concatenate((y_pred1, y_pred2, y_pred3, y_pred4, y_pred5))
 
     accuracy, recall, precision, f1 = evaluate_performance(y_true_complete, y_pred_complete)
+    avg_acc, avg_recall, avg_precision, avg_f1 = evaluate_avg_performance(y_true_complete, y_pred_complete)
     print("Traditional Metrics overall:")
     for i in [0, 1, 2, 3, 4]:
         print(f"Label {i} :")
@@ -374,6 +373,12 @@ def complete_evaluation(y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_
         print(f"  Recall: {recall[i]:.2f}")
         print(f"  Precision: {precision[i]:.2f}")
         print(f"  F1 Score: {f1[i]:.2f}")
+
+    print("Weighted Average:")
+    print(f"  Accuracy: {avg_acc:.2f}")
+    print(f"  Recall: {avg_recall:.2f}")
+    print(f"  Precision: {avg_precision:.2f}")
+    print(f"  F1 Score: {avg_f1:.2f}")
 
 
     conf_matrix = confusion_matrix(y_true_complete, y_pred_complete)
