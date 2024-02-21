@@ -1,14 +1,13 @@
-import matplotlib.pyplot as plt
+
 import numpy as np
 import pandas as pd
 from sklearn.tree import DecisionTreeClassifier, plot_tree
 
 from wardmetrics.core_methods import eval_events, eval_segments
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score,  confusion_matrix
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, confusion_matrix
 from wardmetrics.visualisations import *
-from wardmetrics.utils import *
-import wardmetrics
+
 from imblearn.over_sampling import RandomOverSampler
 from scipy.fft import fft
 import seaborn as sns
@@ -84,7 +83,7 @@ def read_in(ctm_file_path):
 def preprocessing(df):
     label_column = df['label']
     data_columns = df.drop('label', axis=1)
-    # test with linear acceleration
+    # drop sensors that aren't useful
     data_columns = data_columns.drop(['rotation_vector_x', 'rotation_vector_y', 'rotation_vector_z',
                                       'linear_accel_x', 'linear_accel_y', 'linear_accel_z',
                                       'timestamp',
@@ -94,21 +93,19 @@ def preprocessing(df):
 
                                       ], axis=1)
 
-
-
-
     # Create a new DataFrame with the scaled features and the original label column
 
     data_columns['label'] = label_column
     df = data_columns
 
-    # Windowing
+    # Windowing (50 Hz refreshing sensor rate window size 150 => 3s, 75 overlap are 50%)
     window_size = 150
     overlap = 75
 
     windows = []
     labels = []
 
+    # create windows
     for i in range(0, len(df) - window_size + 1, window_size - overlap):
         window_data = df.iloc[i:i + window_size]
 
@@ -126,6 +123,7 @@ def preprocessing(df):
     return feature_windows, window_labels
 
 
+# removes zero range events, since the ward metric library cant work with them
 def remove_zero_range(list_of_tuples):
     solution = []
     for curr_tuple in list_of_tuples:
@@ -142,6 +140,7 @@ def get_event(events, label):
     return result
 
 
+# evaluate segment and event based for each label
 def evaluate_segment_event_based(y_true, y_pred):
     gt_events = convert_to_events(y_true)
     pred_events = convert_to_events(y_pred)
@@ -162,19 +161,20 @@ def evaluate_segment_event_based(y_true, y_pred):
     pd_event_4 = get_event(pred_events, 4)
 
     print("\nlabel 0\n")
-    calculate_event_score(gt_event_0, pd_event_0, end)
+    calculate_event_score(gt_event_0, pd_event_0, end, 'sit down')
     print("\nlabel 1\n")
-    calculate_event_score(gt_event_1, pd_event_1, end)
+    calculate_event_score(gt_event_1, pd_event_1, end, 'sitting')
     print("\nlabel 2\n")
-    calculate_event_score(gt_event_2, pd_event_2, end)
+    calculate_event_score(gt_event_2, pd_event_2, end, 'stand up')
     print("\nlabel3\n")
-    calculate_event_score(gt_event_3, pd_event_3, end)
+    calculate_event_score(gt_event_3, pd_event_3, end, 'standing')
     print("\nlabel4\n")
-    calculate_event_score(gt_event_4, pd_event_4, end)
+    calculate_event_score(gt_event_4, pd_event_4, end, 'walking')
     print("\n")
 
 
-def calculate_event_score(gt_event, pd_event, end):
+# computes event and segment score and prints/ plots it
+def calculate_event_score(gt_event, pd_event, end, label):
     gt_events_without_label = [(x[0], x[1]) for x in gt_event]
     pd_events_without_label = [(x[0], x[1]) for x in pd_event]
     pd_events_without_zero_range = remove_zero_range(pd_events_without_label)
@@ -190,24 +190,31 @@ def calculate_event_score(gt_event, pd_event, end):
     elif len(pd_events_without_zero_range) == 0:
         print("No predicted events")
     else:
+        # events
         gt_event_scores, det_event_scores, detailed_scores, standard_scores = eval_events(
             ground_truth_events=gt_events_without_zero_range, detected_events=pd_events_without_zero_range)
+
+        print("\nEventBased:\n")
+
+        print(detailed_scores)
+        print(standard_scores)
+
+        plot_event_analysis_diagram(detailed_scores, fontsize=8, use_percentage=True, show=False)
+
+        plt.title(label)
+        plt.show
+
         # Segments
         twoset_results, segments_with_scores, segment_counts, normed_segment_counts = eval_segments(
             gt_events_without_zero_range, pd_events_without_zero_range, evaluation_end=end)
-        # here we can plot results if needed
-        # plot_events_with_event_scores(gt_event_scores, det_event_scores, gt_events_without_zero_range, pred_events_without_zero_range, show=False)
-        # plot_event_analysis_diagram(detailed_scores, fontsize=8, use_percentage=True)
-        print("\nEventBased:\n")
-        print(gt_event_scores)
-        print(det_event_scores)
-        print(detailed_scores)
-        print(standard_scores)
+
         print("\nSegmentBased:\n")
         print(twoset_results)
         print(segments_with_scores)
         print(segment_counts)
         print(normed_segment_counts)
+
+        plot_twoset_metrics(twoset_results)
 
 
 # returns a list of label ranges like events[(start:0 , end: 60, label: 4),...]
@@ -229,9 +236,9 @@ def convert_to_events(labels):
     return events
 
 
-# TODO check which features are unimportant and test correlation as feature
+# extracts features (time and frequency based)
 def extract_features(window_data):
-    basic_features = window_data.drop('label', axis=1).agg(['mean',  'std',  'max', 'min', 'median',
+    basic_features = window_data.drop('label', axis=1).agg(['mean', 'std', 'max', 'min', 'median',
                                                             ]).values.flatten()
     frequency_features = []
 
@@ -253,6 +260,7 @@ def extract_features(window_data):
     return all_features
 
 
+# computes weighted average of traditional metrics
 def evaluate_avg_performance(y_true, y_pred):
     accuracy = accuracy_score(y_true, y_pred)
     recall = recall = recall_score(y_true, y_pred, average='weighted')
@@ -261,6 +269,7 @@ def evaluate_avg_performance(y_true, y_pred):
     return accuracy, recall, precision, f1
 
 
+# computes traditional metrics for each label
 def evaluate_performance(y_true, y_pred):
     accuracy = accuracy_score(y_true, y_pred)
     class_accuracy = {}
@@ -276,7 +285,9 @@ def evaluate_performance(y_true, y_pred):
     return class_accuracy, recall, precision, f1
 
 
+# trains Decision tree and uses it on the test sets
 def five_set_dt(train1, train2, train3, train4, train5, test1, test2, test3, test4, test5):
+    distribution(train1, train2, train3, train4, train5)
     X_train1, df_test1, label_encoder1, y_train1 = pre_processing(test1, train1)
     X_train2, df_test2, label_encoder2, y_train2 = pre_processing(test2, train2)
     X_train3, df_test3, label_encoder3, y_train3 = pre_processing(test3, train3)
@@ -284,7 +295,7 @@ def five_set_dt(train1, train2, train3, train4, train5, test1, test2, test3, tes
     X_train5, df_test5, label_encoder5, y_train5 = pre_processing(test5, train5)
     X_train_complete = np.concatenate((X_train1, X_train2, X_train3, X_train4, X_train5), axis=0)
     y_train_complete = np.concatenate((y_train1, y_train2, y_train3, y_train4, y_train5), axis=0)
-    dt_classifier = training(X_train_complete, y_train_complete)
+    dt_classifier = training(X_train_complete, y_train_complete, label_encoder1)
     y_pred1, y_true1 = evaluate_model(df_test1, dt_classifier, label_encoder1, '1')
     y_pred2, y_true2 = evaluate_model(df_test2, dt_classifier, label_encoder2, '2')
     y_pred3, y_true3 = evaluate_model(df_test3, dt_classifier, label_encoder3, '3')
@@ -292,16 +303,6 @@ def five_set_dt(train1, train2, train3, train4, train5, test1, test2, test3, tes
     y_pred5, y_true5 = evaluate_model(df_test5, dt_classifier, label_encoder5, '5')
 
     return y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5
-
-
-def one_set_dt(train, test, set):
-    X_train, df_test, label_encoder, y_train = pre_processing(test, train)
-
-    dt_classifier = training(X_train, y_train)
-
-    # Preprocess the test data for evaluation
-    y_pred, y_true = evaluate_model(df_test, dt_classifier, label_encoder, set)
-    return y_true, y_pred
 
 
 def evaluate_model(df_test, dt_classifier, label_encoder, set):
@@ -317,31 +318,23 @@ def evaluate_model(df_test, dt_classifier, label_encoder, set):
         print(f"  Recall: {recall[i]:.2f}")
         print(f"  Precision: {precision[i]:.2f}")
         print(f"  F1 Score: {f1[i]:.2f}")
-    conf_matrix = confusion_matrix(y_true, y_pred)
-    # Plot Confusion Matrix
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=label_encoder.classes_,
-                yticklabels=label_encoder.classes_)
-    plt.title("Confusion Matrix")
-    plt.xlabel("Predicted Labels")
-    plt.ylabel("True Labels")
-    # plt.show()
-    print("\nWard Metrics Set " + set + ":")
-    evaluate_segment_event_based(y_true, y_pred)
+
+    # print("\nWard Metrics Set " + set + ":")
+    # evaluate_segment_event_based(y_true, y_pred)
     return y_pred, y_true
 
 
-def training(X_train, y_train):
+def training(X_train, y_train, label_encoder):
     dt_classifier = DecisionTreeClassifier(criterion="entropy", class_weight="balanced", max_depth=3,
                                            splitter="best",
                                            random_state=128
 
                                            )
     dt_classifier.fit(X_train, y_train)
-    # plt.figure(figsize=(18, 12),dpi=300)
-    # plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
-    #          class_names=label_encoder.classes_)
-    # plt.show()
+    plt.figure(figsize=(18, 12), dpi=300)
+    plot_tree(dt_classifier, filled=True, feature_names=[f'Feature {i}' for i in range(X_train.shape[1])],
+              class_names=label_encoder.classes_)
+    plt.show()
     return dt_classifier
 
 
@@ -360,12 +353,28 @@ def pre_processing(test, train):
     return X_train, df_test, label_encoder, y_train
 
 
+# prints distribution
+def distribution(train1, train2, train3, train4, train5):
+    df_train1 = read_in(train1)
+    df_train2 = read_in(train2)
+    df_train3 = read_in(train3)
+    df_train4 = read_in(train4)
+    df_train5 = read_in(train5)
+
+    df_full = pd.concat([df_train1, df_train2, df_train3, df_train4, df_train5])
+    label_distribution = df_full['label'].value_counts()
+    print("Label Distribution:")
+    print(label_distribution)
+
+
+# evaluates averaged over all participants
 def complete_evaluation(y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5):
     y_true_complete = np.concatenate((y_true1, y_true2, y_true3, y_true4, y_true5))
     y_pred_complete = np.concatenate((y_pred1, y_pred2, y_pred3, y_pred4, y_pred5))
 
     accuracy, recall, precision, f1 = evaluate_performance(y_true_complete, y_pred_complete)
     avg_acc, avg_recall, avg_precision, avg_f1 = evaluate_avg_performance(y_true_complete, y_pred_complete)
+    evaluate_segment_event_based(y_true_complete, y_pred_complete)
     print("Traditional Metrics overall:")
     for i in [0, 1, 2, 3, 4]:
         print(f"Label {i} :")
@@ -379,7 +388,6 @@ def complete_evaluation(y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_
     print(f"  Recall: {avg_recall:.2f}")
     print(f"  Precision: {avg_precision:.2f}")
     print(f"  F1 Score: {avg_f1:.2f}")
-
 
     conf_matrix = confusion_matrix(y_true_complete, y_pred_complete)
     # Plot Confusion Matrix
@@ -397,28 +405,24 @@ def main():
     ctm_file_path_training1 = r"DATASET\DATASET\P-1_training.ctm"
     ctm_file_path_test1 = r"DATASET\DATASET\P-1_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    # y_true1, y_pred1 = one_set_dt(test=ctm_file_path_test1, train=ctm_file_path_training1, set="1")
 
     ctm_file_path_training2 = r"DATASET\DATASET\P-2_training.ctm"
     ctm_file_path_test2 = r"DATASET\DATASET\P-2_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
 
-    # y_true2, y_pred2 = one_set_dt(test=ctm_file_path_test2, train=ctm_file_path_training2, set="2")
-
     ctm_file_path_training3 = r"DATASET\DATASET\P-3_training.ctm"
     ctm_file_path_test3 = r"DATASET\DATASET\P-3_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    # y_true3, y_pred3 = one_set_dt(test=ctm_file_path_test3, train=ctm_file_path_training3, set="3")
 
     ctm_file_path_training4 = r"DATASET\DATASET\P-4_training.ctm"
     ctm_file_path_test4 = r"DATASET\DATASET\P-4_test.ctm"
     # Reads in the provided sample data (adjust the path if you want to run it)
-    # y_true4, y_pred4 = one_set_dt(test=ctm_file_path_test4, train=ctm_file_path_training4, set="4")
 
     ctm_file_path_training5 = r"DATASET\DATASET\P-5_training.ctm"
     ctm_file_path_test5 = r"DATASET\DATASET\P-5_test.ctm"
+
     # Reads in the provided sample data (adjust the path if you want to run it)
-    # y_true5, y_pred5 = one_set_dt(test=ctm_file_path_test5, train=ctm_file_path_training5, set="5")
+
     y_pred1, y_pred2, y_pred3, y_pred4, y_pred5, y_true1, y_true2, y_true3, y_true4, y_true5 = (
         five_set_dt(ctm_file_path_training1, ctm_file_path_training2, ctm_file_path_training3, ctm_file_path_training4,
                     ctm_file_path_training5, ctm_file_path_test1, ctm_file_path_test2, ctm_file_path_test3,
